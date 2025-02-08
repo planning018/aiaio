@@ -1,0 +1,611 @@
+<!doctype html>
+<html class="dark:bg-gray-900 dark:text-gray-100">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class'
+        }
+
+        // Check initial theme
+        if (localStorage.theme === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+            document.documentElement.classList.add('dark')
+        } else {
+            document.documentElement.classList.remove('dark')
+        }
+
+        // Listen for toggle
+        function toggleDarkMode() {
+            const themeText = document.getElementById('theme-text');
+            if (document.documentElement.classList.contains('dark')) {
+                document.documentElement.classList.remove('dark')
+                localStorage.theme = 'light'
+                themeText.textContent = 'Dark Mode'
+            } else {
+                document.documentElement.classList.add('dark')
+                localStorage.theme = 'dark'
+                themeText.textContent = 'Light Mode'
+            }
+        }
+
+        // Set initial button text
+        window.addEventListener('DOMContentLoaded', () => {
+            const themeText = document.getElementById('theme-text');
+            themeText.textContent = document.documentElement.classList.contains('dark') ? 'Light Mode' : 'Dark Mode';
+        });
+    </script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css">
+    <!-- <script src="/static/scripts/fetch_data_and_update_models.js?cb={{ time }}" defer></script>
+    <script src="/static/scripts/poll.js?cb={{ time }}" defer></script>
+    <script src="/static/scripts/listeners.js?cb={{ time }}" defer></script>
+    <script src="/static/scripts/utils.js?cb={{ time }}" defer></script>
+    <script src="/static/scripts/logs.js?cb={{ time }}" defer></script> -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/flowbite/2.3.0/flowbite.min.css" rel="stylesheet" />
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@600&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <style>
+        .message-bubble {
+            max-width: 85%;
+            margin: 8px;
+            padding: 16px;
+            border-radius: 18px;
+            line-height: 1.5;
+            position: relative;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+            word-wrap: break-word;
+        }
+        .user-message {
+            margin-left: auto;
+            background: linear-gradient(135deg, #0084ff, #0099ff);
+            color: white;
+            border-bottom-right-radius: 4px;
+        }
+        .assistant-message {
+            margin-right: auto;
+            background: #f0f0f0;
+            color: #1a1a1a;
+            border-bottom-left-radius: 4px;
+        }
+        .dark .assistant-message {
+            background: #2d3748;
+            color: #e2e8f0;
+        }
+        .assistant-message pre {
+            background: rgba(0,0,0,0.1);
+            padding: 12px;
+            border-radius: 8px;
+            overflow-x: auto;
+        }
+        .dark .assistant-message pre {
+            background: rgba(0,0,0,0.3);
+        }
+        .assistant-message code {
+            font-family: monospace;
+            padding: 2px 4px;
+            background: rgba(0,0,0,0.05);
+            border-radius: 3px;
+        }
+        .dark .assistant-message code {
+            background: rgba(0,0,0,0.2);
+        }
+        .message-bubble p:first-child {
+            margin-top: 0;
+        }
+        .message-bubble p:last-child {
+            margin-bottom: 0;
+        }
+        .file-preview {
+            max-width: 200px;
+            max-height: 200px;
+            object-fit: contain;
+            margin: 8px 0;
+        }
+        .file-input-button {
+            padding: 8px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .file-input-button:hover {
+            background-color: rgba(0, 0, 0, 0.05);
+        }
+        .dark .file-input-button:hover {
+            background-color: rgba(255, 255, 255, 0.05);
+        }
+    </style>
+</head>
+
+<body class="bg-gray-100 text-gray-900 dark:bg-gray-900 dark:text-gray-100">
+    <!-- Left sidebar toggle button -->
+    <button data-drawer-target="left-sidebar" data-drawer-toggle="left-sidebar"
+        aria-controls="left-sidebar" type="button"
+        class="inline-flex items-center p-2 mt-2 ms-3 text-sm text-gray-500 rounded-lg sm:hidden hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-gray-200">
+        <span class="sr-only">Open sidebar</span>
+        <svg class="w-6 h-6" aria-hidden="true" fill="currentColor" viewBox="0 0 20 20">
+            <path clip-rule="evenodd" fill-rule="evenodd" d="M2 4.75A.75.75 0 012.75 4h14.5a.75.75 0 010 1.5H2.75A.75.75 0 012 4.75zm0 10.5a.75.75 0 01.75-.75h7.5a.75.75 0 010 1.5h-7.5a.75.75 0 01-.75-.75zM2 10a.75.75 0 01.75-.75h14.5a.75.75 0 010 1.5H2.75A.75.75 0 012 10z"></path>
+        </svg>
+    </button>
+
+    <!-- Left Sidebar -->
+    <aside id="left-sidebar" class="fixed top-0 left-0 z-40 w-64 h-screen transition-transform -translate-x-full sm:translate-x-0">
+        <div class="h-[calc(100vh-2rem)] my-4 mx-3 px-3 py-4 bg-gray-50 dark:bg-gray-800 rounded-lg flex flex-col">
+            <!-- App title -->
+            <a href="#" class="flex items-center ps-2.5 mb-4">
+                <span class="font-['Orbitron'] text-2xl font-semibold bg-gradient-to-r from-blue-500 to-purple-600 text-transparent bg-clip-text">aiaio</span>
+            </a>
+            <hr class="mb-4 border-gray-200 dark:border-gray-700">
+            
+            <!-- Scrollable conversations container -->
+            <div class="flex-1 overflow-y-auto mb-4">
+                <div class="mb-4">
+                    <h3 class="px-2 mb-2 text-sm font-semibold text-gray-600 dark:text-gray-400">Conversations</h3>
+                    <div id="conversations-list" class="space-y-1 pr-2">
+                        <!-- Conversations will be listed here -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Fixed dark mode toggle at bottom -->
+            <div class="pt-2">
+                <button id="theme-toggle" 
+                    onclick="toggleDarkMode()"
+                    class="w-full px-4 py-2 rounded-lg border border-gray-200 dark:border-gray-600 
+                    hover:bg-gray-100 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 
+                    focus:ring-gray-200 dark:focus:ring-gray-700 transition-colors duration-200
+                    flex items-center justify-between">
+                    <span id="theme-text" class="text-sm font-medium text-gray-700 dark:text-gray-300">Dark Mode</span>
+                    <svg id="theme-toggle-icon" class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                        <!-- Moon icon -->
+                        <path class="hidden dark:block" d="M17.293 13.293A8 8 0 016.707 2.707a8.001 8.001 0 1010.586 10.586z"></path>
+                        <!-- Sun icon -->
+                        <path class="block dark:hidden" fill-rule="evenodd" d="M10 2a1 1 0 011 1v1a1 1 0 11-2 0V3a1 1 0 011-1zm4 8a4 4 0 11-8 0 4 4 0 018 0zm-.464 4.95l.707.707a1 1 0 001.414-1.414l-.707-.707a1 1 0 00-1.414 1.414zm2.12-10.607a1 1 0 010 1.414l-.706.707a1 1 0 11-1.414-1.414l.707-.707a1 1 0 011.414 0zM17 11a1 1 0 100-2h-1a1 1 0 100 2h1zm-7 4a1 1 0 011 1v1a1 1 0 11-2 0v-1a1 1 0 011-1zM5.05 6.464A1 1 0 106.465 5.05l-.708-.707a1 1 0 00-1.414 1.414l.707.707zm1.414 8.486l-.707.707a1 1 0 01-1.414-1.414l.707-.707a1 1 0 011.414 1.414zM4 11a1 1 0 100-2H3a1 1 0 000 2h1z"></path>
+                    </svg>
+                </button>
+            </div>
+        </div>
+    </aside>
+
+    <!-- Main Chat Area -->
+    <div class="sm:ml-64 sm:mr-64">
+        <div class="h-[calc(100vh-2rem)] my-4 flex flex-col">
+            <!-- System Prompt Input -->
+            <div class="bg-white dark:bg-gray-800 rounded-lg p-4 mb-4">
+                <div class="flex items-center gap-2 text-xs text-gray-600 dark:text-gray-400 mb-2">
+                    System Prompt
+                </div>
+                <textarea id="system-prompt" 
+                    class="w-full p-2 text-sm border rounded-lg dark:bg-gray-700 dark:border-gray-600 dark:text-gray-100" 
+                    rows="2"
+                    placeholder="Enter system prompt..."
+                ></textarea>
+            </div>
+
+            <!-- Chat Messages Container -->
+            <div id="chat-messages" class="flex-1 overflow-y-auto mb-4 bg-white dark:bg-gray-800 rounded-lg p-4">
+                <!-- Chat messages will be inserted here -->
+            </div>
+            
+            <!-- Chat Input Area -->
+            <div class="bg-white dark:bg-gray-800 rounded-lg p-4">
+                <form id="chat-form" class="space-y-2">
+                    <div id="file-preview-container" class="hidden"></div>
+                    <div class="flex gap-2">
+                        <label class="file-input-button">
+                            <input type="file" 
+                                id="file-input" 
+                                class="hidden" 
+                                accept=".txt,.csv,.json,.pdf,.doc,.docx,.xls,.xlsx,image/*"
+                                multiple>
+                            <svg class="w-6 h-6 text-gray-500 dark:text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"></path>
+                            </svg>
+                        </label>
+                        <input type="text" id="message-input" class="flex-1 p-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600" placeholder="Send a message...">
+                        <button type="submit" class="px-6 py-2 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-lg 
+                            hover:from-blue-600 hover:to-blue-700 transform hover:scale-105 transition-all duration-200 
+                            flex items-center gap-2 shadow-lg hover:shadow-blue-500/50">
+                            <svg class="w-4 h-4 transform rotate-45" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/>
+                            </svg>
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Right Sidebar -->
+    <aside class="fixed top-0 right-0 z-40 w-64 hidden sm:block">
+        <div class="h-[calc(100vh-2rem)] my-4 mx-3 px-3 py-4 overflow-y-auto bg-gray-50 dark:bg-gray-800 rounded-lg flex flex-col">
+            <!-- Settings header -->
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-sm font-semibold">Settings</h3>
+                <button onclick="resetSettings()" 
+                        class="p-2 text-gray-500 hover:text-blue-600 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-all duration-200"
+                        title="Reset to defaults">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
+                            d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                    </svg>
+                </button>
+            </div>
+            
+
+            <!-- Settings content - flex-1 makes it take available space -->
+            <div class="flex-1 space-y-4 overflow-y-auto">
+                <div>
+                    <label for="temperature" class="block text-xs font-medium mb-2">
+                        Temperature: <span id="temperature-value">1.0</span>
+                    </label>
+                    <input type="range" id="temperature" 
+                        min="0" max="2" step="0.05" value="1.0"
+                        class="w-full"
+                        oninput="document.getElementById('temperature-value').textContent=this.value">
+                </div>
+
+                <div>
+                    <label for="top_p" class="block text-xs font-medium mb-2">
+                        Top P: <span id="top_p-value">0.95</span>
+                    </label>
+                    <input type="range" id="top_p" 
+                        min="0" max="1" step="0.05" value="0.95"
+                        class="w-full"
+                        oninput="document.getElementById('top_p-value').textContent=this.value">
+                </div>
+
+                <div>
+                    <label for="max_tokens" class="block text-xs font-medium mb-2">Max Tokens</label>
+                    <input type="number" id="max_tokens" 
+                        value="4096" min="1"
+                        class="w-full p-2 text-xs border rounded-lg dark:bg-gray-700 dark:border-gray-600 dark:text-gray-100">
+                </div>
+
+                <div>
+                    <label for="host" class="block text-xs font-medium mb-2">Host</label>
+                    <input type="text" id="host" 
+                        value="http://localhost:8000"
+                        class="w-full p-2 text-xs border rounded-lg dark:bg-gray-700 dark:border-gray-600 dark:text-gray-100">
+                </div>
+
+                <div>
+                    <label for="model_name" class="block text-xs font-medium mb-2">Model Name</label>
+                    <input type="text" id="model_name" 
+                        value="meta-llama/Llama-3.2-1B-Instruct"
+                        class="w-full p-2 text-xs border rounded-lg dark:bg-gray-700 dark:border-gray-600 dark:text-gray-100">
+                </div>
+
+                <div>
+                    <label for="api_key" class="block text-xs font-medium mb-2">API Key</label>
+                    <input type="password" id="api_key" 
+                        placeholder="Enter API key"
+                        class="w-full p-2 text-xs border rounded-lg dark:bg-gray-700 dark:border-gray-600 dark:text-gray-100">
+                </div>
+            </div>
+
+            <!-- Save button at bottom -->
+            <div class="pt-4 mt-4 border-t border-gray-200 dark:border-gray-700">
+                <button onclick="saveSettings()" 
+                    class="w-full px-4 py-2 bg-gradient-to-r from-blue-500 to-blue-600 
+                           text-white rounded-lg hover:from-blue-600 hover:to-blue-700 
+                           transition-all duration-200 transform hover:scale-[1.02] 
+                           flex items-center justify-center gap-2 shadow-lg hover:shadow-blue-500/50">
+                    Save Settings
+                </button>
+            </div>
+        </div>
+    </aside>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/flowbite/2.3.0/flowbite.min.js"></script>
+    <script>
+        function formatTimestamp(timestamp) {
+            const date = new Date(timestamp * 1000);
+            return date.toLocaleString();
+        }
+
+        let pollInterval = null;
+        const POLL_INTERVAL_MS = 1000; // Poll every 5 seconds
+
+        function startPolling() {
+            // Clear any existing interval
+            if (pollInterval) {
+                clearInterval(pollInterval);
+            }
+            
+            // Set up new polling interval
+            pollInterval = setInterval(loadConversations, POLL_INTERVAL_MS);
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            loadConversations();
+            loadSystemPrompt();
+            startNewConversation();
+            startPolling(); // Start polling for conversation updates
+        });
+
+        document.addEventListener('visibilitychange', () => {
+            if (document.hidden) {
+                clearInterval(pollInterval);
+            } else {
+                loadConversations(); // Immediate refresh when page becomes visible
+                startPolling();
+            }
+        });
+
+        let isLoading = false;
+        async function loadConversations() {
+            if (isLoading) return;
+            
+            try {
+                isLoading = true;
+                const response = await fetch('/conversations');
+                const data = await response.json();
+                const conversationsList = document.getElementById('conversations-list');
+                
+                // Sort conversations by last_updated timestamp (newest first)
+                data.conversations.sort((a, b) => b.last_updated - a.last_updated);
+                
+                // Only update DOM if there are changes
+                const currentConvs = conversationsList.innerHTML;
+                const newConvs = data.conversations.map(conv => {
+                    const lastUpdated = formatTimestamp(conv.last_updated);
+                    return `
+                        <div class="w-full px-3 py-2 text-sm rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors duration-200 cursor-pointer mb-2" 
+                             onclick="loadConversation('${conv.conversation_id}')">
+                            <div class="text-xs">${conv.conversation_id}</div>
+                            <div class="text-[10px] text-gray-500 dark:text-gray-400">
+                                Messages: ${conv.message_count}
+                            </div>
+                            <div class="text-[10px] text-gray-500 dark:text-gray-400">
+                                ${lastUpdated}
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+                
+                if (currentConvs !== newConvs) {
+                    conversationsList.innerHTML = newConvs;
+                }
+            } catch (error) {
+                console.error('Error loading conversations:', error);
+            } finally {
+                isLoading = false;
+            }
+        }
+
+        async function loadConversation(conversationId) {
+            try {
+                const response = await fetch(`/conversations/${conversationId}`);
+                const data = await response.json();
+                // Clear current chat
+                chatMessages.innerHTML = '';
+                
+                // Set current conversation ID
+                currentConversationId = conversationId;
+                
+                // Display messages
+                data.messages.forEach(msg => {
+                    if (msg.role === 'user') {
+                        appendUserMessage(msg.content);
+                    } else if (msg.role === 'assistant') {
+                        currentAssistantMessage = createAssistantMessage();
+                        updateAssistantMessage(msg.content);
+                        currentAssistantMessage = null;
+                    }
+                });
+            } catch (error) {
+                console.error('Error loading conversation:', error);
+            }
+        }
+
+        // Add function to start new conversation
+        function startNewConversation() {
+            chatMessages.innerHTML = '';
+            currentConversationId = null;
+        }
+
+        // Add new conversation button event listener
+        document.getElementById('new-conversation-btn')?.addEventListener('click', startNewConversation);
+
+        // Load conversations when page loads
+        document.addEventListener('DOMContentLoaded', () => {
+            loadConversations();
+            loadSystemPrompt();
+            startNewConversation(); // Ensure we start with a new conversation
+        });
+
+        const chatForm = document.getElementById('chat-form');
+        const messageInput = document.getElementById('message-input');
+        const chatMessages = document.getElementById('chat-messages');
+        let currentAssistantMessage = null;
+        let conversationHistory = [];
+        let isFirstMessage = true;
+        let uploadedFiles = [];
+        let currentConversationId = null; // This ensures we start with a new conversation
+
+        function appendUserMessage(content) {
+            const messageDiv = document.createElement('div');
+            messageDiv.className = 'message-bubble user-message';
+            messageDiv.textContent = content;
+            chatMessages.appendChild(messageDiv);
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
+
+        function createAssistantMessage() {
+            const messageDiv = document.createElement('div');
+            messageDiv.className = 'message-bubble assistant-message';
+            chatMessages.appendChild(messageDiv);
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+            return messageDiv;
+        }
+
+        function updateAssistantMessage(content) {
+            if (!currentAssistantMessage) {
+                currentAssistantMessage = createAssistantMessage();
+            }
+            currentAssistantMessage.innerHTML = marked.parse(content);
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
+
+        chatForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const message = messageInput.value.trim();
+            if (!message && !document.getElementById('file-input').files.length) return;
+
+            try {
+                // If this is a new conversation, create it first
+                if (!currentConversationId) {
+                    const createResponse = await fetch('/create_conversation', { method: 'POST' });
+                    const data = await createResponse.json();
+                    currentConversationId = data.conversation_id;
+                    loadConversations(); // Refresh conversation list
+                }
+
+                appendUserMessage(message);
+                messageInput.value = '';
+                
+                // Clear file previews
+                document.getElementById('file-preview-container').innerHTML = '';
+                document.getElementById('file-preview-container').classList.add('hidden');
+                
+                currentAssistantMessage = null;
+                let assistantResponse = '';
+
+                const formData = new FormData();
+                formData.append('message', message);
+                formData.append('system_prompt', document.getElementById('system-prompt').value.trim() || 'you are a bot');
+                formData.append('conversation_id', currentConversationId);
+                
+                const fileInput = document.getElementById('file-input');
+                if (fileInput.files.length > 0) {
+                    formData.append('file', fileInput.files[0]);
+                }
+
+                const response = await fetch('/chat', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const reader = response.body.getReader();
+                const decoder = new TextDecoder();
+
+                while (true) {
+                    const {value, done} = await reader.read();
+                    if (done) break;
+                    
+                    const text = decoder.decode(value);
+                    assistantResponse += text;
+                    updateAssistantMessage(assistantResponse);
+                }
+
+            } catch (error) {
+                console.error('Error:', error);
+                currentAssistantMessage = null;
+                appendMessage('Sorry, something went wrong', 'assistant');
+            }
+
+            // Reset file input
+            document.getElementById('file-input').value = '';
+        });
+
+        document.getElementById('file-input').addEventListener('change', async (e) => {
+            const files = Array.from(e.target.files);
+            const previewContainer = document.getElementById('file-preview-container');
+            previewContainer.innerHTML = '';
+            uploadedFiles = [];
+
+            for (const file of files) {
+                const reader = new FileReader();
+                
+                reader.onload = async (e) => {
+                    const fileData = e.target.result;
+                    uploadedFiles.push({
+                        name: file.name,
+                        type: file.type,
+                        data: fileData
+                    });
+
+                    // Create preview
+                    if (file.type.startsWith('image/')) {
+                        const img = document.createElement('img');
+                        img.src = fileData;
+                        img.className = 'file-preview';
+                        previewContainer.appendChild(img);
+                    } else {
+                        const div = document.createElement('div');
+                        div.className = 'p-2 bg-gray-100 dark:bg-gray-700 rounded text-sm';
+                        div.textContent = `📎 ${file.name}`;
+                        previewContainer.appendChild(div);
+                    }
+                };
+
+                if (file.type.startsWith('image/')) {
+                    reader.readAsDataURL(file);
+                } else {
+                    reader.readAsText(file);
+                }
+            }
+
+            if (files.length > 0) {
+                previewContainer.classList.remove('hidden');
+            }
+        });
+
+        function loadSystemPrompt() {
+            const savedPrompt = localStorage.getItem('systemPrompt') || '';
+            document.getElementById('system-prompt').value = savedPrompt;
+            return savedPrompt;
+        }
+
+        // Add event listener for system prompt changes
+        document.getElementById('system-prompt').addEventListener('input', (e) => {
+            localStorage.setItem('systemPrompt', e.target.value);
+        });
+
+        // Add this near the other script functions
+        function resetSettings() {
+            document.getElementById('temperature').value = '1.0';
+            document.getElementById('temperature-value').textContent = '1.0';
+            document.getElementById('top_p').value = '0.95';
+            document.getElementById('top_p-value').textContent = '0.95';
+            document.getElementById('max_tokens').value = '4096';
+            document.getElementById('host').value = 'http://localhost:8000';
+            document.getElementById('model_name').value = 'meta-llama/Llama-3.2-1B-Instruct';
+            document.getElementById('api_key').value = '';
+        }
+
+        async function saveSettings() {
+            try {
+                const response = await fetch('/save_settings', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        temperature: parseFloat(document.getElementById('temperature').value),
+                        top_p: parseFloat(document.getElementById('top_p').value),
+                        max_tokens: parseInt(document.getElementById('max_tokens').value),
+                        host: document.getElementById('host').value,
+                        model_name: document.getElementById('model_name').value,
+                        api_key: document.getElementById('api_key').value
+                    })
+                });
+
+                if (response.ok) {
+                    alert('Settings saved successfully');
+                } else {
+                    alert('Failed to save settings');
+                }
+            } catch (error) {
+                console.error('Error saving settings:', error);
+                alert('Error saving settings');
+            }
+        }
+    </script>
+</body>
+
+</html>
