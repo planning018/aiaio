@@ -194,7 +194,7 @@
     <div class="sm:ml-64 sm:mr-64">
         <div class="h-[calc(100vh-2rem)] my-4 flex flex-col">
             <!-- System Prompt Input -->
-            <div class="bg-white dark:bg-gray-800 rounded-lg p-4 mb-4">
+            <div class="flex-none bg-white dark:bg-gray-800 rounded-lg p-4 mb-4">
                 <div class="flex items-center gap-2 text-xs text-gray-600 dark:text-gray-400 mb-2">
                     System Prompt
                 </div>
@@ -205,16 +205,16 @@
                 ></textarea>
             </div>
 
-            <!-- Chat Messages Container -->
-            <div class="relative flex-1 mb-4 bg-white dark:bg-gray-800 rounded-lg">
-                <!-- Chat Messages -->
-                <div id="chat-messages" class="h-full overflow-y-auto p-4">
+            <!-- Chat Messages Container - Fixed height with flex-grow -->
+            <div class="flex-grow bg-white dark:bg-gray-800 rounded-lg overflow-hidden flex flex-col min-h-0">
+                <!-- Chat Messages - Scrollable area -->
+                <div id="chat-messages" class="flex-grow overflow-y-auto p-4">
                     <!-- Chat messages will be inserted here -->
                 </div>
             </div>
 
-            <!-- Chat Input Area -->
-            <div class="bg-white dark:bg-gray-800 rounded-lg p-4">
+            <!-- Chat Input Area - Fixed height -->
+            <div class="flex-none bg-white dark:bg-gray-800 rounded-lg p-4 mt-4">
                 <form id="chat-form" class="space-y-2">
                     <div id="file-preview-container" class="hidden space-y-2"></div>
                     <div class="flex gap-2">
