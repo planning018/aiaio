@@ -5,6 +5,7 @@ import uuid
 from typing import Dict, List, Optional
 
 
+# SQL schema for creating database tables
 _DB = """
 CREATE TABLE conversations (
     conversation_id TEXT PRIMARY KEY,
@@ -52,11 +53,30 @@ VALUES (1.0, 4096, 0.95, 'http://localhost:8000/v1', 'meta-llama/Llama-3.2-1B-In
 
 
 class ChatDatabase:
+    """A class to manage chat-related database operations.
+
+    This class handles all database interactions for conversations, messages,
+    attachments, and settings using SQLite.
+
+    Attributes:
+        db_path (str): Path to the SQLite database file
+    """
+
     def __init__(self, db_path: str = "chatbot.db"):
+        """Initialize the database connection.
+
+        Args:
+            db_path (str, optional): Path to the SQLite database file. Defaults to "chatbot.db".
+        """
         self.db_path = db_path
         self._init_db()
 
     def _init_db(self):
+        """Initialize the database schema.
+
+        Creates tables if they don't exist or if the database is new.
+        Also handles schema migrations for existing databases.
+        """
         db_exists = os.path.exists(self.db_path)
 
         with sqlite3.connect(self.db_path) as conn:
@@ -78,6 +98,11 @@ class ChatDatabase:
                         conn.execute("ALTER TABLE conversations ADD COLUMN summary TEXT")
 
     def create_conversation(self) -> str:
+        """Create a new conversation.
+
+        Returns:
+            str: Unique identifier for the created conversation.
+        """
         conversation_id = str(uuid.uuid4())
         with sqlite3.connect(self.db_path) as conn:
             conn.execute("INSERT INTO conversations (conversation_id) VALUES (?)", (conversation_id,))
@@ -91,6 +116,18 @@ class ChatDatabase:
         content_type: str = "text",
         attachments: Optional[List[Dict]] = None,
     ) -> str:
+        """Add a new message to a conversation.
+
+        Args:
+            conversation_id (str): ID of the conversation
+            role (str): Role of the message sender ('user', 'assistant', or 'system')
+            content (str): Content of the message
+            content_type (str, optional): Type of content. Defaults to "text".
+            attachments (Optional[List[Dict]], optional): List of attachment metadata. Defaults to None.
+
+        Returns:
+            str: Unique identifier for the created message
+        """
         message_id = str(uuid.uuid4())
         current_time = time.time()
 
@@ -129,6 +166,14 @@ class ChatDatabase:
         return message_id
 
     def get_conversation_history(self, conversation_id: str) -> List[Dict]:
+        """Retrieve the full history of a conversation including attachments.
+
+        Args:
+            conversation_id (str): ID of the conversation
+
+        Returns:
+            List[Dict]: List of messages with their attachments in chronological order
+        """
         with sqlite3.connect(self.db_path) as conn:
             conn.row_factory = sqlite3.Row
             messages = conn.execute(
@@ -165,6 +210,11 @@ class ChatDatabase:
         return list(message_dict.values())
 
     def delete_conversation(self, conversation_id: str):
+        """Delete a conversation and all its associated messages and attachments.
+
+        Args:
+            conversation_id (str): ID of the conversation to delete
+        """
         with sqlite3.connect(self.db_path) as conn:
             conn.execute(
                 """DELETE FROM attachments
@@ -177,6 +227,11 @@ class ChatDatabase:
             conn.execute("DELETE FROM conversations WHERE conversation_id = ?", (conversation_id,))
 
     def get_all_conversations(self) -> List[Dict]:
+        """Retrieve all conversations with their message counts and last activity.
+
+        Returns:
+            List[Dict]: List of conversations with their metadata
+        """
         with sqlite3.connect(self.db_path) as conn:
             conn.row_factory = sqlite3.Row
             conversations = conn.execute(
@@ -192,6 +247,14 @@ class ChatDatabase:
         return [dict(conv) for conv in conversations]
 
     def save_settings(self, settings: Dict) -> bool:
+        """Save or update application settings.
+
+        Args:
+            settings (Dict): Dictionary containing setting key-value pairs
+
+        Returns:
+            bool: True if settings were saved successfully
+        """
         with sqlite3.connect(self.db_path) as conn:
             current_time = time.time()
             conn.execute(
@@ -219,11 +282,22 @@ class ChatDatabase:
         return True
 
     def get_settings(self) -> Dict:
+        """Retrieve current application settings.
+
+        Returns:
+            Dict: Dictionary containing all settings
+        """
         with sqlite3.connect(self.db_path) as conn:
             conn.row_factory = sqlite3.Row
             settings = conn.execute("SELECT * FROM settings WHERE id = 1").fetchone()
             return dict(settings) if settings else {}
 
     def update_conversation_summary(self, conversation_id: str, summary: str):
+        """Update the summary of a conversation.
+
+        Args:
+            conversation_id (str): ID of the conversation
+            summary (str): New summary text for the conversation
+        """
         with sqlite3.connect(self.db_path) as conn:
             conn.execute("UPDATE conversations SET summary = ? WHERE conversation_id = ?", (summary, conversation_id))

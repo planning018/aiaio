@@ -36,23 +36,59 @@ db = ChatDatabase()
 
 
 class FileAttachment(BaseModel):
+    """
+    Pydantic model for handling file attachments in messages.
+
+    Attributes:
+        name (str): Name of the file
+        type (str): MIME type of the file
+        data (str): Base64 encoded file data
+    """
+
     name: str
     type: str
     data: str
 
 
 class MessageContent(BaseModel):
+    """
+    Pydantic model for message content including optional file attachments.
+
+    Attributes:
+        text (str): The text content of the message
+        files (List[FileAttachment]): Optional list of file attachments
+    """
+
     text: str
     files: Optional[List[FileAttachment]] = None
 
 
 class ChatInput(BaseModel):
+    """
+    Pydantic model for chat input data.
+
+    Attributes:
+        message (str): The user's message content
+        system_prompt (str): Instructions for the AI model
+        conversation_id (str, optional): ID of the conversation
+    """
+
     message: str
     system_prompt: str
     conversation_id: Optional[str] = None
 
 
 class MessageInput(BaseModel):
+    """
+    Pydantic model for message input data.
+
+    Attributes:
+        role (str): The role of the message sender (e.g., 'user', 'assistant', 'system')
+        content (str): The message content
+        content_type (str): Type of content, defaults to "text"
+        attachments (List[Dict], optional): List of file attachments
+    """
+
     role: str
     content: str
     content_type: str = "text"
@@ -60,6 +96,18 @@ class MessageInput(BaseModel):
 
 
 class SettingsInput(BaseModel):
+    """
+    Pydantic model for AI model settings.
+
+    Attributes:
+        temperature (float): Controls randomness in responses
+        max_tokens (int): Maximum length of generated responses
+        top_p (float): Controls diversity via nucleus sampling
+        host (str): API endpoint URL
+        model_name (str): Name of the AI model to use
+        api_key (str): Authentication key for the API
+    """
+
     temperature: Optional[float] = 1.0
     max_tokens: Optional[int] = 4096
     top_p: Optional[float] = 0.95
@@ -69,6 +117,15 @@ class SettingsInput(BaseModel):
 
 
 async def text_streamer(messages: List[Dict[str, str]]):
+    """
+    Stream text responses from the AI model.
+
+    Args:
+        messages (List[Dict[str, str]]): List of message dictionaries containing role and content
+
+    Yields:
+        str: Chunks of generated text from the AI model
+    """
     formatted_messages = []
 
     for msg in messages:
@@ -120,16 +177,46 @@ async def text_streamer(messages: List[Dict[str, str]]):
 
 @app.get("/", response_class=HTMLResponse)
 async def load_index(request: Request):
-    return templates.TemplateResponse("index.html", {"request": request, "time": time.strftime("%Y-%m-%d %H:%M:%S"),})
+    """
+    Serve the main application page.
+
+    Args:
+        request (Request): FastAPI request object
+
+    Returns:
+        TemplateResponse: Rendered HTML template
+    """
+    return templates.TemplateResponse(
+        "index.html",
+        {
+            "request": request,
+            "time": time.strftime("%Y-%m-%d %H:%M:%S"),
+        },
+    )
 
 
 @app.get("/version")
 async def version():
+    """
+    Get the application version.
+
+    Returns:
+        dict: Version information
+    """
     return {"version": __version__}
 
 
 @app.get("/conversations")
 async def get_conversations():
+    """
+    Retrieve all conversations.
+
+    Returns:
+        dict: List of all conversations
+
+    Raises:
+        HTTPException: If database operation fails
+    """
     try:
         conversations = db.get_all_conversations()
         return {"conversations": conversations}
@@ -139,6 +226,18 @@ async def get_conversations():
 
 @app.get("/conversations/{conversation_id}")
 async def get_conversation(conversation_id: str):
+    """
+    Retrieve a specific conversation's history.
+
+    Args:
+        conversation_id (str): ID of the conversation to retrieve
+
+    Returns:
+        dict: Conversation messages
+
+    Raises:
+        HTTPException: If conversation not found or operation fails
+    """
     try:
         history = db.get_conversation_history(conversation_id)
         if not history:
@@ -150,6 +249,15 @@ async def get_conversation(conversation_id: str):
 
 @app.post("/create_conversation")
 async def create_conversation():
+    """
+    Create a new conversation.
+
+    Returns:
+        dict: New conversation ID
+
+    Raises:
+        HTTPException: If creation fails
+    """
     try:
         conversation_id = db.create_conversation()
         return {"conversation_id": conversation_id}
@@ -159,6 +267,19 @@ async def create_conversation():
 
 @app.post("/conversations/{conversation_id}/messages")
 async def add_message(conversation_id: str, message: MessageInput):
+    """
+    Add a message to a conversation.
+
+    Args:
+        conversation_id (str): Target conversation ID
+        message (MessageInput): Message data to add
+
+    Returns:
+        dict: Added message ID
+
+    Raises:
+        HTTPException: If operation fails
+    """
     try:
         message_id = db.add_message(
             conversation_id=conversation_id,
@@ -174,6 +295,18 @@ async def add_message(conversation_id: str, message: MessageInput):
 
 @app.delete("/conversations/{conversation_id}")
 async def delete_conversation(conversation_id: str):
+    """
+    Delete a conversation.
+
+    Args:
+        conversation_id (str): ID of conversation to delete
+
+    Returns:
+        dict: Operation status
+
+    Raises:
+        HTTPException: If deletion fails
+    """
     try:
         db.delete_conversation(conversation_id)
         return {"status": "success"}
@@ -183,6 +316,18 @@ async def delete_conversation(conversation_id: str):
 
 @app.post("/save_settings")
 async def save_settings(settings: SettingsInput):
+    """
+    Save AI model settings.
+
+    Args:
+        settings (SettingsInput): Settings to save
+
+    Returns:
+        dict: Operation status
+
+    Raises:
+        HTTPException: If save operation fails
+    """
     try:
         settings_dict = settings.model_dump()
         db.save_settings(settings_dict)
@@ -193,6 +338,15 @@ async def save_settings(settings: SettingsInput):
 
 @app.get("/settings")
 async def get_settings():
+    """
+    Retrieve current AI model settings.
+
+    Returns:
+        dict: Current settings or defaults if none saved
+
+    Raises:
+        HTTPException: If retrieval fails
+    """
     try:
         settings = db.get_settings()
         # Return default settings if none are saved
@@ -212,6 +366,12 @@ async def get_settings():
 
 @app.get("/settings/defaults")
 async def get_default_settings():
+    """
+    Get default AI model settings.
+
+    Returns:
+        dict: Default settings values
+    """
     return {
         "temperature": 1.0,
         "max_tokens": 4096,
@@ -223,7 +383,15 @@ async def get_default_settings():
 
 
 def generate_safe_filename(original_filename: str) -> str:
-    """Generate a safe filename with timestamp to prevent collisions."""
+    """
+    Generate a safe filename with timestamp to prevent collisions.
+
+    Args:
+        original_filename (str): Original filename to be sanitized
+
+    Returns:
+        str: Sanitized filename with timestamp
+    """
     # Get timestamp
     timestamp = time.strftime("%Y%m%d_%H%M%S")
 
@@ -241,6 +409,18 @@ def generate_safe_filename(original_filename: str) -> str:
 
 @app.get("/get_system_prompt", response_class=JSONResponse)
 async def get_system_prompt(conversation_id: str = None):
+    """
+    Get the system prompt for a conversation.
+
+    Args:
+        conversation_id (str, optional): ID of the conversation
+
+    Returns:
+        JSONResponse: System prompt text
+
+    Raises:
+        HTTPException: If retrieval fails
+    """
     try:
         if conversation_id:
             history = db.get_conversation_history(conversation_id)
@@ -264,6 +444,21 @@ async def chat(
     conversation_id: str = Form(...),  # Now required
     files: List[UploadFile] = File(None),
 ):
+    """
+    Handle chat requests with support for file uploads and streaming responses.
+
+    Args:
+        message (str): User's message
+        system_prompt (str): System instructions for the AI
+        conversation_id (str): Unique identifier for the conversation
+        files (List[UploadFile]): Optional list of uploaded files
+
+    Returns:
+        StreamingResponse: Server-sent events stream of AI responses
+
+    Raises:
+        HTTPException: If there's an error processing the request
+    """
     try:
         logger.info(f"Chat request: message='{message}' conv_id={conversation_id} system_prompt='{system_prompt}'")
 
@@ -320,6 +515,12 @@ async def chat(
         history = db.get_conversation_history(conversation_id)
 
         async def process_and_stream():
+            """
+            Inner generator function to process the chat and stream responses.
+
+            Yields:
+                str: Chunks of the AI response
+            """
             full_response = ""
             if file_info_list:
                 files_str = ", ".join(f"'{f['name']}'" for f in file_info_list)
@@ -367,6 +568,19 @@ async def chat(
 
 @app.post("/conversations/{conversation_id}/summary")
 async def update_conversation_summary(conversation_id: str, summary: str = Form(...)):
+    """
+    Update the summary of a conversation.
+
+    Args:
+        conversation_id (str): ID of the conversation
+        summary (str): New summary text
+
+    Returns:
+        dict: Operation status
+
+    Raises:
+        HTTPException: If update fails
+    """
     try:
         db.update_conversation_summary(conversation_id, summary)
         return {"status": "success"}
