@@ -29,6 +29,18 @@
                 localStorage.theme = 'dark'
                 themeText.textContent = 'Light Mode'
             }
+
+            // Toggle code highlighting theme
+            const lightTheme = document.querySelector('link[href*="github.min.css"]');
+            const darkTheme = document.querySelector('link[href*="github-dark.min.css"]');
+            
+            if (document.documentElement.classList.contains('dark')) {
+                lightTheme.disabled = true;
+                darkTheme.disabled = false;
+            } else {
+                lightTheme.disabled = false;
+                darkTheme.disabled = true;
+            }
         }
 
         // Set initial button text
@@ -38,15 +50,14 @@
         });
     </script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css">
-    <!-- <script src="/static/scripts/fetch_data_and_update_models.js?cb={{ time }}" defer></script>
-    <script src="/static/scripts/poll.js?cb={{ time }}" defer></script>
-    <script src="/static/scripts/listeners.js?cb={{ time }}" defer></script>
-    <script src="/static/scripts/utils.js?cb={{ time }}" defer></script>
-    <script src="/static/scripts/logs.js?cb={{ time }}" defer></script> -->
     <link href="https://cdnjs.cloudflare.com/ajax/libs/flowbite/2.3.0/flowbite.min.css" rel="stylesheet" />
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/github.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/github-dark.min.css" 
+          class="code-theme-dark" disabled>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/highlight.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <style>
         .message-bubble {
@@ -70,6 +81,7 @@
             background: #f0f0f0;
             color: #1a1a1a;
             border-bottom-left-radius: 4px;
+            line-height: 1.6;
         }
         .dark .assistant-message {
             background: #2d3748;
@@ -80,18 +92,39 @@
             padding: 12px;
             border-radius: 8px;
             overflow-x: auto;
+            margin: 1em 0;
+            padding: 1em;
+            border-radius: 6px;
+            background: #f6f8fa;
+            border: 1px solid #e5e7eb;
         }
         .dark .assistant-message pre {
             background: rgba(0,0,0,0.3);
+            background: #1a1f2e;
+            border-color: #374151;
+            color: #e5e7eb;
         }
         .assistant-message code {
             font-family: monospace;
             padding: 2px 4px;
             background: rgba(0,0,0,0.05);
             border-radius: 3px;
+            font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+            font-size: 0.9em;
+            padding: 0.2em 0.4em;
+            border-radius: 3px;
+            background: rgba(0,0,0,0.05);
+            color: inherit;
         }
         .dark .assistant-message code {
             background: rgba(0,0,0,0.2);
+            background: rgba(255,255,255,0.1);
+            color: inherit;
+        }
+        .assistant-message pre code {
+            padding: 0;
+            background: transparent;
+            color: inherit;
         }
         .message-bubble p:first-child {
             margin-top: 0;
@@ -157,6 +190,183 @@
             #send-button {
                 padding: 8px 16px;
             }
+        }
+
+        /* Update input and textarea styling */
+        input[type="text"], 
+        input[type="number"], 
+        input[type="password"],
+        textarea {
+            background-color: #f8fafc;
+            border: 1px solid #e2e8f0;
+            transition: all 0.2s ease;
+        }
+
+        input[type="text"]:hover, 
+        input[type="number"]:hover, 
+        input[type="password"]:hover,
+        textarea:hover {
+            background-color: #f1f5f9;
+            border-color: #cbd5e1;
+        }
+
+        input[type="text"]:focus, 
+        input[type="number"]:focus, 
+        input[type="password"]:focus,
+        textarea:focus {
+            background-color: white;
+            border-color: #3b82f6;
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+            outline: none;
+        }
+
+        .dark input[type="text"],
+        .dark input[type="number"],
+        .dark input[type="password"],
+        .dark textarea {
+            background-color: #1e293b;
+            border-color: #334155;
+        }
+
+        .dark input[type="text"]:hover,
+        .dark input[type="number"]:hover,
+        .dark input[type="password"]:hover,
+        .dark textarea:hover {
+            background-color: #1e293b;
+            border-color: #475569;
+        }
+
+        .dark input[type="text"]:focus,
+        .dark input[type="number"]:focus,
+        .dark input[type="password"]:focus,
+        .dark textarea:focus {
+            background-color: #1e293b;
+            border-color: #3b82f6;
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
+        }
+
+        /* Update range input (slider) styling */
+        input[type="range"] {
+            height: 6px;
+            background: #e2e8f0;
+            border-radius: 3px;
+            cursor: pointer;
+        }
+
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 16px;
+            height: 16px;
+            background: #3b82f6;
+            border-radius: 50%;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        input[type="range"]::-webkit-slider-thumb:hover {
+            transform: scale(1.1);
+            background: #2563eb;
+        }
+
+        .dark input[type="range"] {
+            background: #334155;
+        }
+
+        /* Add these new styles for better Markdown rendering */
+        .assistant-message h1,
+        .assistant-message h2,
+        .assistant-message h3,
+        .assistant-message h4 {
+            margin-top: 1.5em;
+            margin-bottom: 0.75em;
+            font-weight: 600;
+        }
+
+        .assistant-message h1 { font-size: 1.5em; }
+        .assistant-message h2 { font-size: 1.3em; }
+        .assistant-message h3 { font-size: 1.1em; }
+
+        .assistant-message p {
+            margin: 1em 0;
+        }
+
+        .assistant-message ul,
+        .assistant-message ol {
+            margin: 1em 0;
+            padding-left: 2em;
+        }
+
+        .assistant-message ul { list-style-type: disc; }
+        .assistant-message ol { list-style-type: decimal; }
+
+        .assistant-message table {
+            margin: 1em 0;
+            border-collapse: collapse;
+            width: 100%;
+        }
+
+        .assistant-message th,
+        .assistant-message td {
+            padding: 0.5em;
+            border: 1px solid #e5e7eb;
+        }
+
+        .dark .assistant-message th,
+        .dark .assistant-message td {
+            border-color: #374151;
+        }
+
+        .assistant-message th {
+            background: #f9fafb;
+            font-weight: 600;
+        }
+
+        .dark .assistant-message th {
+            background: #374151;
+        }
+
+        .assistant-message blockquote {
+            margin: 1em 0;
+            padding-left: 1em;
+            border-left: 4px solid #e5e7eb;
+            color: #6b7280;
+        }
+
+        .dark .assistant-message blockquote {
+            border-left-color: #4b5563;
+            color: #9ca3af;
+        }
+
+        /* Override highlight.js theme colors for dark mode */
+        .dark .hljs {
+            background: transparent;
+            color: #e5e7eb;
+        }
+        
+        .dark .hljs-keyword,
+        .dark .hljs-operator {
+            color: #c678dd;  /* Purple */
+        }
+        
+        .dark .hljs-string {
+            color: #98c379;  /* Green */
+        }
+        
+        .dark .hljs-comment {
+            color: #7f8c98;  /* Muted gray */
+        }
+        
+        .dark .hljs-function,
+        .dark .hljs-class {
+            color: #61afef;  /* Blue */
+        }
+        
+        .dark .hljs-number {
+            color: #d19a66;  /* Orange */
+        }
+        
+        .dark .hljs-title {
+            color: #e5c07b;  /* Yellow */
         }
     </style>
 </head>
@@ -229,21 +439,20 @@
     <!-- Main Chat Area - Update padding and margins for mobile -->
     <div class="sm:ml-64 sm:mr-64 px-2 sm:px-0">
         <div class="h-[calc(100vh-1rem)] sm:h-[calc(100vh-2rem)] my-2 sm:my-4 flex flex-col relative">
-            <!-- System Prompt Input - Adjust padding for mobile -->
-            <div class="flex-none bg-white dark:bg-gray-800 rounded-lg p-3 sm:p-4 mb-2 sm:mb-4">
-                <div class="flex items-center gap-2 text-xs text-gray-600 dark:text-gray-400 mb-2">
-                    System Prompt
-                </div>
-                <textarea id="system-prompt" 
-                    class="w-full p-2 text-sm border rounded-lg dark:bg-gray-700 dark:border-gray-600 dark:text-gray-100" 
-                    rows="2"
-                    placeholder="Enter system prompt..."
-                ></textarea>
-            </div>
-
-            <!-- Chat Messages Container - Adjust padding for mobile -->
+            <!-- Combined Container for System Prompt and Chat Messages -->
             <div class="flex-grow bg-white dark:bg-gray-800 rounded-lg overflow-hidden flex flex-col min-h-0 mb-[120px] sm:mb-0">
-                <!-- Chat Messages - Scrollable area -->
+                <!-- System Prompt Section -->
+                <div class="flex-none p-3 sm:p-4 border-b border-gray-200 dark:border-gray-700">
+                    <div class="flex items-center gap-2 text-xs text-gray-600 dark:text-gray-400 mb-2">
+                        System Prompt
+                    </div>
+                    <textarea id="system-prompt" 
+                        class="w-full p-2 text-sm border rounded-lg dark:bg-gray-700 dark:border-gray-600 dark:text-gray-100" 
+                        rows="2"
+                        placeholder="Enter system prompt..."
+                    ></textarea>
+                </div>
+                <!-- Chat Messages Section -->
                 <div id="chat-messages" class="flex-grow overflow-y-auto p-2 sm:p-4">
                     <!-- Chat messages will be inserted here -->
                 </div>
@@ -566,7 +775,34 @@
             if (!currentAssistantMessage) {
                 currentAssistantMessage = createAssistantMessage();
             }
+
+            // Configure marked options
+            marked.setOptions({
+                gfm: true, // GitHub Flavored Markdown
+                breaks: true, // Add <br> on single line breaks
+                headerIds: false, // Disable header IDs to prevent conflicts
+                mangle: false, // Disable mangling to prevent conflicts
+                highlight: function(code, language) {
+                    if (language && hljs.getLanguage(language)) {
+                        try {
+                            return hljs.highlight(code, { language }).value;
+                        } catch (err) {
+                            console.error('Highlight.js error:', err);
+                        }
+                    }
+                    return code; // Fallback to raw code if language not supported
+                }
+            });
+
+            // Update the content
             currentAssistantMessage.innerHTML = marked.parse(content);
+
+            // Apply syntax highlighting to all code blocks
+            currentAssistantMessage.querySelectorAll('pre code').forEach(block => {
+                hljs.highlightElement(block);
+            });
+
+            // Scroll to bottom
             chatMessages.scrollTop = chatMessages.scrollHeight;
         }
 
