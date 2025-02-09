@@ -374,6 +374,19 @@ async def chat(
             # Store the complete response
             db.add_message(conversation_id=conversation_id, role="assistant", content=full_response)
 
+            # Generate and store summary after assistant's response
+            try:
+                summary_messages = [
+                    {"role": "system", "content": "summarize in less than 50 characters"},
+                    {"role": "user", "content": str([history[-1], {"role": "assistant", "content": full_response}])},
+                ]
+                summary = ""
+                async for chunk in text_streamer(summary_messages):
+                    summary += chunk
+                db.update_conversation_summary(conversation_id, summary.strip())
+            except Exception as e:
+                logger.error(f"Failed to generate summary: {e}")
+
         return StreamingResponse(
             process_and_stream(),
             media_type="text/event-stream",
@@ -386,4 +399,13 @@ async def chat(
 
     except Exception as e:
         logger.error(f"Error in chat endpoint: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/conversations/{conversation_id}/summary")
+async def update_conversation_summary(conversation_id: str, summary: str = Form(...)):
+    try:
+        db.update_conversation_summary(conversation_id, summary)
+        return {"status": "success"}
+    except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

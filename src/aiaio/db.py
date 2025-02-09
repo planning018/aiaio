@@ -10,7 +10,8 @@ _DB = """
 CREATE TABLE conversations (
     conversation_id TEXT PRIMARY KEY,
     created_at REAL DEFAULT (strftime('%s.%f', 'now')),
-    last_updated REAL DEFAULT (strftime('%s.%f', 'now'))
+    last_updated REAL DEFAULT (strftime('%s.%f', 'now')),
+    summary TEXT
 );
 
 CREATE TABLE messages (
@@ -76,6 +77,11 @@ class ChatDatabase:
                 ).fetchall()
                 if len(tables) < 4:
                     conn.executescript(_DB)
+                else:
+                    # Check if summary column exists
+                    columns = conn.execute("PRAGMA table_info(conversations)").fetchall()
+                    if "summary" not in [col[1] for col in columns]:
+                        conn.execute("ALTER TABLE conversations ADD COLUMN summary TEXT")
 
     def create_conversation(self) -> str:
         conversation_id = str(uuid.uuid4())
@@ -223,6 +229,13 @@ class ChatDatabase:
             conn.row_factory = sqlite3.Row
             settings = conn.execute("SELECT * FROM settings WHERE id = 1").fetchone()
             return dict(settings) if settings else {}
+
+    def update_conversation_summary(self, conversation_id: str, summary: str):
+        with sqlite3.connect(self.db_path) as conn:
+            conn.execute(
+                "UPDATE conversations SET summary = ? WHERE conversation_id = ?",
+                (summary, conversation_id)
+            )
 
 
 if __name__ == "__main__":

@@ -434,6 +434,9 @@
                         <div class="group w-full px-3 py-2 text-sm rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors duration-200 cursor-pointer mb-2 relative" 
                              onclick="loadConversation('${conv.conversation_id}')">
                             <div class="text-xs">${conv.conversation_id}</div>
+                            <div class="text-[10px] text-gray-600 dark:text-gray-300 italic mb-1 overflow-hidden text-ellipsis">
+                                ${conv.summary || 'No summary'}
+                            </div>
                             <div class="text-[10px] text-gray-500 dark:text-gray-400">
                                 Messages: ${conv.message_count}
                             </div>
