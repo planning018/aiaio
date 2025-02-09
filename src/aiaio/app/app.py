@@ -145,7 +145,6 @@ async def text_streamer(messages: List[Dict[str, str]]):
     )
 
     for message in chat_completion:
-        logger.info(f"Message: {message}")
         if message.choices[0].delta.content is not None:
             yield message.choices[0].delta.content
 
@@ -273,6 +272,24 @@ def generate_safe_filename(original_filename: str) -> str:
 
     # Create new filename
     return f"{base}_{timestamp}{ext}"
+
+
+@app.get("/get_system_prompt", response_class=JSONResponse)
+async def get_system_prompt(conversation_id: str = None):
+    try:
+        if conversation_id:
+            history = db.get_conversation_history(conversation_id)
+            if history:
+                system_role_messages = [m for m in history if m["role"] == "system"]
+                last_system_message = (
+                    system_role_messages[-1]["content"] if system_role_messages else "You are a helpful assistant."
+                )
+                return {"system_prompt": last_system_message}
+
+        # Default system prompt for new conversations or when no conversation_id is provided
+        return {"system_prompt": "You are a helpful assistant."}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @app.post("/chat", response_class=StreamingResponse)

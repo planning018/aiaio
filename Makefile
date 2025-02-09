@@ -18,3 +18,9 @@ pip:
 	make style && make quality
 	python -m build
 	twine upload dist/* --verbose
+
+docker-build:
+	docker build -t aiaio .
+
+docker-run:
+	docker run --network=host -it --rm aiaio

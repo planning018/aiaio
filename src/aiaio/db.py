@@ -47,7 +47,7 @@ CREATE TABLE settings (
 
 -- Insert default settings
 INSERT INTO settings (temperature, max_tokens, top_p, host, model_name, api_key)
-VALUES (1.0, 4096, 0.95, 'http://localhost:8000', 'meta-llama/Llama-3.2-1B-Instruct', 'YOUR_API_KEY');
+VALUES (1.0, 4096, 0.95, 'http://localhost:8000/v1', 'meta-llama/Llama-3.2-1B-Instruct', '');
 """
 
 
