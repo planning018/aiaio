@@ -1,0 +1,543 @@
+
+function formatTimestamp(timestamp) {
+    const date = new Date(timestamp * 1000);
+    return date.toLocaleString();
+}
+
+let pollInterval = null;
+const POLL_INTERVAL_MS = 3000; // Poll every 3 seconds
+
+function startPolling() {
+    // Clear any existing interval
+    if (pollInterval) {
+        clearInterval(pollInterval);
+    }
+    
+    // Set up new polling interval
+    pollInterval = setInterval(loadConversations, POLL_INTERVAL_MS);
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    loadConversations();
+    updateSystemPrompt(); // Replace loadSystemPrompt with updateSystemPrompt
+    startNewConversation();
+    startPolling(); // Start polling for conversation updates
+    loadSettings(); // Add this line
+    loadVersion(); // Add this line
+});
+
+document.addEventListener('visibilitychange', () => {
+    if (document.hidden) {
+        clearInterval(pollInterval);
+    } else {
+        loadConversations(); // Immediate refresh when page becomes visible
+        startPolling();
+    }
+});
+
+let isLoading = false;
+async function loadConversations() {
+    if (isLoading) return;
+    
+    try {
+        isLoading = true;
+        const response = await fetch('/conversations');
+        const data = await response.json();
+        const conversationsList = document.getElementById('conversations-list');
+        
+        // Sort conversations by last_updated timestamp (newest first)
+        data.conversations.sort((a, b) => b.last_updated - a.last_updated);
+        
+        // Only update DOM if there are changes
+        const currentConvs = conversationsList.innerHTML;
+        const newConvs = data.conversations.map(conv => {
+            const lastUpdated = formatTimestamp(conv.last_updated);
+            return `
+                <div class="group w-full px-3 py-2 text-sm rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors duration-200 cursor-pointer mb-2 relative" 
+                        onclick="loadConversation('${conv.conversation_id}')">
+                    <div class="text-xs">${conv.conversation_id}</div>
+                    <div class="text-[10px] text-gray-600 dark:text-gray-300 italic mb-1 overflow-hidden text-ellipsis">
+                        ${conv.summary || 'No summary'}
+                    </div>
+                    <div class="text-[10px] text-gray-500 dark:text-gray-400">
+                        Messages: ${conv.message_count}
+                    </div>
+                    <div class="text-[10px] text-gray-500 dark:text-gray-400">
+                        ${lastUpdated}
+                    </div>
+                    <button onclick="deleteConversation('${conv.conversation_id}', event)"
+                            class="absolute top-1 right-1 opacity-0 group-hover:opacity-100 p-1 text-gray-500 hover:text-red-500 rounded-full hover:bg-gray-300 dark:hover:bg-gray-600 transition-all duration-200">
+                        <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                    </button>
+                </div>
+            `;
+        }).join('');
+        
+        if (currentConvs !== newConvs) {
+            conversationsList.innerHTML = newConvs;
+        }
+    } catch (error) {
+        console.error('Error loading conversations:', error);
+    } finally {
+        isLoading = false;
+    }
+}
+
+async function updateSystemPrompt() {
+    try {
+        const response = await fetch(`/get_system_prompt?conversation_id=${currentConversationId || ''}`);
+        const data = await response.json();
+        document.getElementById('system-prompt').value = data.system_prompt;
+    } catch (error) {
+        console.error('Error fetching system prompt:', error);
+    }
+}
+
+async function loadConversation(conversationId) {
+    try {
+        currentConversationId = conversationId;
+        const response = await fetch(`/conversations/${conversationId}`);
+        const data = await response.json();
+        // Clear current chat
+        chatMessages.innerHTML = '';
+        
+        // Set current conversation ID
+        currentConversationId = conversationId;
+        
+        // Display messages
+        data.messages.forEach(msg => {
+            if (msg.role === 'user') {
+                appendUserMessage(msg.content);
+            } else if (msg.role === 'assistant') {
+                currentAssistantMessage = createAssistantMessage();
+                updateAssistantMessage(msg.content);
+                currentAssistantMessage = null;
+            }
+        });
+
+        // Fetch and update system prompt for the loaded conversation
+        await updateSystemPrompt();
+    } catch (error) {
+        console.error('Error loading conversation:', error);
+    }
+}
+
+async function createNewConversation() {
+    try {
+        const createResponse = await fetch('/create_conversation', { method: 'POST' });
+        const data = await createResponse.json();
+        currentConversationId = data.conversation_id;
+        loadConversations();
+
+        // Reset system prompt by fetching default from API
+        await updateSystemPrompt();
+    } catch (error) {
+        console.error('Error creating conversation:', error);
+    }
+}
+
+// Add function to start new conversation
+async function startNewConversation() {
+    chatMessages.innerHTML = '';
+    currentConversationId = null;
+    messageInput.value = '';
+    document.getElementById('file-input').value = '';
+    document.getElementById('file-preview-container').innerHTML = '';
+    document.getElementById('file-preview-container').classList.add('hidden');
+    await updateSystemPrompt(); // Fetch system prompt for new conversation
+}
+
+// Add new conversation button event listener
+document.getElementById('new-conversation-btn')?.addEventListener('click', startNewConversation);
+
+// Load conversations when page loads
+document.addEventListener('DOMContentLoaded', () => {
+    loadConversations();
+    updateSystemPrompt(); // Replace loadSystemPrompt with updateSystemPrompt
+    startNewConversation(); // Ensure we start with a new conversation
+});
+
+const chatForm = document.getElementById('chat-form');
+const messageInput = document.getElementById('message-input');
+const chatMessages = document.getElementById('chat-messages');
+let currentAssistantMessage = null;
+let conversationHistory = [];
+let isFirstMessage = true;
+let uploadedFiles = [];
+let currentConversationId = null; // This ensures we start with a new conversation
+
+function appendUserMessage(content) {
+    const messageDiv = document.createElement('div');
+    messageDiv.className = 'message-bubble user-message';
+    messageDiv.textContent = content;
+    chatMessages.appendChild(messageDiv);
+    chatMessages.scrollTop = chatMessages.scrollHeight;
+}
+
+function createAssistantMessage() {
+    const messageDiv = document.createElement('div');
+    messageDiv.className = 'message-bubble assistant-message';
+    chatMessages.appendChild(messageDiv);
+    chatMessages.scrollTop = chatMessages.scrollHeight;
+    return messageDiv;
+}
+
+function copyToClipboard(text) {
+    navigator.clipboard.writeText(text).then(() => {
+        const button = event.target;
+        const originalText = button.textContent;
+        button.textContent = 'Copied!';
+        setTimeout(() => {
+            button.textContent = originalText;
+        }, 2000);
+    }).catch(err => {
+        console.error('Failed to copy:', err);
+    });
+}
+
+function updateAssistantMessage(content) {
+    if (!currentAssistantMessage) {
+        currentAssistantMessage = createAssistantMessage();
+    }
+
+    // Configure marked options
+    marked.setOptions({
+        gfm: true, // GitHub Flavored Markdown
+        breaks: true, // Add <br> on single line breaks
+        headerIds: false, // Disable header IDs to prevent conflicts
+        mangle: false, // Disable mangling to prevent conflicts
+        highlight: function(code, language) {
+            if (language && hljs.getLanguage(language)) {
+                try {
+                    return hljs.highlight(code, { language }).value;
+                } catch (err) {
+                    console.error('Highlight.js error:', err);
+                }
+            }
+            return code; // Fallback to raw code if language not supported
+        }
+    });
+
+    // Update the content
+    currentAssistantMessage.innerHTML = marked.parse(content);
+
+    // Add copy button to code blocks
+    currentAssistantMessage.querySelectorAll('pre code').forEach(block => {
+        // Apply syntax highlighting
+        hljs.highlightElement(block);
+        
+        // Create and add copy button
+        const pre = block.parentNode;
+        const copyButton = document.createElement('button');
+        copyButton.className = 'copy-button';
+        copyButton.textContent = 'Copy';
+        copyButton.onclick = (e) => {
+            e.preventDefault();
+            copyToClipboard(block.textContent);
+        };
+        pre.appendChild(copyButton);
+    });
+
+    // Scroll to bottom
+    chatMessages.scrollTop = chatMessages.scrollHeight;
+}
+
+// Add this new event listener for Enter key
+messageInput.addEventListener('keypress', function(e) {
+    if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        chatForm.requestSubmit();
+    }
+});
+
+chatForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const message = messageInput.value.trim();
+    const fileInput = document.getElementById('file-input');
+    const files = fileInput.files;
+    const sendButton = document.getElementById('send-button');
+    
+    if (!message && !files.length) return;
+
+    messageInput.value = '';
+    sendButton.disabled = true; // Disable button
+    
+    try {
+        if (!currentConversationId) {
+            const createResponse = await fetch('/create_conversation', { method: 'POST' });
+            const data = await createResponse.json();
+            currentConversationId = data.conversation_id;
+            loadConversations();
+        }
+
+        appendUserMessage(message);
+        
+        // Clear file previews
+        document.getElementById('file-preview-container').innerHTML = '';
+        document.getElementById('file-preview-container').classList.add('hidden');
+        
+        // Create FormData and append all data
+        const formData = new FormData();
+        formData.append('message', message);
+        formData.append('system_prompt', document.getElementById('system-prompt').value.trim() || 'You are a helpful assistant');
+        formData.append('conversation_id', currentConversationId);
+        
+        Array.from(files).forEach(file => {
+            formData.append('files', file);
+        });
+
+        fileInput.value = '';
+
+        // Create assistant message bubble immediately
+        currentAssistantMessage = createAssistantMessage();
+        let responseText = '';
+
+        const response = await fetch('/chat', {
+            method: 'POST',
+            body: formData
+        });
+
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder();
+
+        while (true) {
+            const {value, done} = await reader.read();
+            if (done) break;
+            
+            const chunk = decoder.decode(value);
+            responseText += chunk;
+            // Update the message with the accumulated text
+            updateAssistantMessage(responseText);
+        }
+
+    } catch (error) {
+        console.error('Error:', error);
+        currentAssistantMessage = null;
+        appendMessage('Sorry, something went wrong. ' + error.message, 'assistant');
+    } finally {
+        sendButton.disabled = false; // Re-enable button
+    }
+});
+
+document.getElementById('file-input').addEventListener('change', async (e) => {
+    const files = Array.from(e.target.files);
+    const previewContainer = document.getElementById('file-preview-container');
+    previewContainer.innerHTML = '';
+    uploadedFiles = [];
+
+    for (const file of files) {
+        const reader = new FileReader();
+        
+        reader.onload = async (e) => {
+            const fileData = e.target.result;
+            uploadedFiles.push({
+                name: file.name,
+                type: file.type,
+                data: fileData
+            });
+
+            const previewDiv = document.createElement('div');
+            previewDiv.className = 'flex items-center gap-2 p-2 bg-gray-100 dark:bg-gray-700 rounded';
+
+            if (file.type.startsWith('image/')) {
+                const img = document.createElement('img');
+                img.src = fileData;
+                img.className = 'w-12 h-12 object-cover rounded';
+                previewDiv.appendChild(img);
+            } else {
+                const icon = document.createElement('div');
+                icon.className = 'w-12 h-12 flex items-center justify-center bg-gray-200 dark:bg-gray-600 rounded';
+                icon.innerHTML = '📎';
+                previewDiv.appendChild(icon);
+            }
+
+            const nameSpan = document.createElement('span');
+            nameSpan.className = 'flex-1 truncate text-sm';
+            nameSpan.textContent = file.name;
+            previewDiv.appendChild(nameSpan);
+
+            const removeButton = document.createElement('button');
+            removeButton.className = 'p-1 text-gray-500 hover:text-red-500';
+            removeButton.innerHTML = '×';
+            removeButton.onclick = () => {
+                previewDiv.remove();
+                uploadedFiles = uploadedFiles.filter(f => f.name !== file.name);
+                if (uploadedFiles.length === 0) {
+                    previewContainer.classList.add('hidden');
+                }
+            };
+            previewDiv.appendChild(removeButton);
+
+            previewContainer.appendChild(previewDiv);
+        };
+
+        if (file.type.startsWith('image/')) {
+            reader.readAsDataURL(file);
+        } else {
+            reader.readAsText(file);
+        }
+    }
+
+    if (files.length > 0) {
+        previewContainer.classList.remove('hidden');
+    }
+});
+
+let originalSettings = {};
+
+async function loadSettings() {
+    try {
+        const response = await fetch('/settings');
+        const settings = await response.json();
+        
+        // Store original settings
+        originalSettings = {...settings};
+        
+        // Update input values with server settings
+        updateSettingsInputs(settings);
+    } catch (error) {
+        console.error('Error loading settings:', error);
+        resetSettings();
+    }
+}
+
+function updateSettingsInputs(settings) {
+    document.getElementById('temperature').value = settings.temperature || 1.0;
+    document.getElementById('temperature-value').textContent = settings.temperature || 1.0;
+    document.getElementById('top_p').value = settings.top_p || 0.95;
+    document.getElementById('top_p-value').textContent = settings.top_p || 0.95;
+    document.getElementById('max_tokens').value = settings.max_tokens || 4096;
+    document.getElementById('host').value = settings.host || 'http://localhost:8000/v1';
+    document.getElementById('model_name').value = settings.model_name || 'meta-llama/Llama-3.2-1B-Instruct';
+    document.getElementById('api_key').value = settings.api_key || '';
+}
+
+function getCurrentSettings() {
+    return {
+        temperature: parseFloat(document.getElementById('temperature').value),
+        top_p: parseFloat(document.getElementById('top_p').value),
+        max_tokens: parseInt(document.getElementById('max_tokens').value),
+        host: document.getElementById('host').value,
+        model_name: document.getElementById('model_name').value,
+        api_key: document.getElementById('api_key').value
+    };
+}
+
+async function checkSettingsChanged() {
+    const currentSettings = getCurrentSettings();
+    const warning = document.getElementById('settings-warning');
+    
+    try {
+        const response = await fetch('/settings');
+        const serverSettings = await response.json();
+        
+        const hasChanges = Object.keys(currentSettings).some(key => 
+            serverSettings[key] !== currentSettings[key]
+        );
+        
+        warning.classList.toggle('hidden', !hasChanges);
+    } catch (error) {
+        console.error('Error checking settings:', error);
+        // If we can't reach the server, hide the warning
+        warning.classList.add('hidden');
+    }
+}
+
+// Add change listeners to all settings inputs
+['temperature', 'top_p', 'max_tokens', 'host', 'model_name', 'api_key'].forEach(id => {
+    document.getElementById(id).addEventListener('input', () => {
+        // Debounce the check to avoid too many server requests
+        clearTimeout(window.settingsCheckTimeout);
+        window.settingsCheckTimeout = setTimeout(checkSettingsChanged, 300);
+    });
+});
+
+async function saveSettings() {
+    try {
+        const response = await fetch('/save_settings', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(getCurrentSettings())
+        });
+
+        if (response.ok) {
+            // Update original settings to match current
+            originalSettings = getCurrentSettings();
+            // Hide warning
+            document.getElementById('settings-warning').classList.add('hidden');
+            alert('Settings saved successfully');
+        } else {
+            alert('Failed to save settings');
+        }
+    } catch (error) {
+        console.error('Error saving settings:', error);
+        alert('Error saving settings');
+    }
+}
+
+async function resetSettings() {
+    try {
+        const response = await fetch('/settings/defaults');
+        const defaultSettings = await response.json();
+        updateSettingsInputs(defaultSettings);
+        originalSettings = {...defaultSettings};
+        document.getElementById('settings-warning').classList.add('hidden');
+    } catch (error) {
+        console.error('Error fetching default settings:', error);
+        // Fallback to hardcoded defaults if endpoint fails
+        const fallbackDefaults = {
+            temperature: 1.0,
+            top_p: 0.95,
+            max_tokens: 4096,
+            host: 'http://localhost:8000/v1',
+            model_name: 'meta-llama/Llama-3.2-1B-Instruct',
+            api_key: ''
+        };
+        updateSettingsInputs(fallbackDefaults);
+        originalSettings = {...fallbackDefaults};
+        document.getElementById('settings-warning').classList.add('hidden');
+    }
+}
+
+async function deleteConversation(conversationId, event) {
+    event.stopPropagation(); // Prevent triggering the conversation load
+    if (!confirm('Are you sure you want to delete this conversation?')) return;
+    
+    try {
+        const response = await fetch(`/conversations/${conversationId}`, {
+            method: 'DELETE'
+        });
+        
+        if (response.ok) {
+            // If we're currently viewing this conversation, start a new one
+            if (currentConversationId === conversationId) {
+                startNewConversation();
+            }
+            await loadConversations(); // Refresh the list
+        } else {
+            alert('Failed to delete conversation');
+        }
+    } catch (error) {
+        console.error('Error deleting conversation:', error);
+        alert('Error deleting conversation');
+    }
+}
+
+async function loadVersion() {
+    try {
+        const response = await fetch('/version');
+        const data = await response.json();
+        document.getElementById('version-display').textContent = `version: ${data.version}`;
+    } catch (error) {
+        console.error('Error loading version:', error);
+        document.getElementById('version-display').textContent = 'version: unknown';
+    }
+}

@@ -120,7 +120,7 @@ async def text_streamer(messages: List[Dict[str, str]]):
 
 @app.get("/", response_class=HTMLResponse)
 async def load_index(request: Request):
-    return templates.TemplateResponse("index.html", {"request": request})
+    return templates.TemplateResponse("index.html", {"request": request, "time": time.strftime("%Y-%m-%d %H:%M:%S"),})
 
 
 @app.get("/version")
