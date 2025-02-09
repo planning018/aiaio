@@ -29,7 +29,7 @@ A lightweight, privacy-focused web UI for interacting with AI models. Supports b
 - llama.cpp
 - any other custom openai-compatible api
 
-## Installation
+## Installation using pip
 
 ```bash
 pip install aiaio
@@ -43,6 +43,20 @@ aiaio app --host 127.0.0.1 --port 5000
 ```
 
 2. Open your browser and navigate to `http://127.0.0.1:5000`
+
+## Docker Usage
+
+1. Build the Docker image:
+```bash
+docker build -t aiaio .
+```
+
+2. Run the container:
+```bash
+docker run -p 9000:9000 aiaio
+```
+
+3. Access the UI at `http://localhost:9000`
 
 ## Configuration
 
