@@ -1,6 +1,6 @@
 import argparse
 
-from aiaio import __version__, logger
+from aiaio import __version__
 from aiaio.cli.run_app import RunAppCommand
 
 

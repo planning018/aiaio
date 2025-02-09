@@ -590,7 +590,7 @@
                 <div>
                     <label for="host" class="block text-xs font-medium mb-2">Host</label>
                     <input type="text" id="host" 
-                        value="http://localhost:8000"
+                        value="http://localhost:8000/v1"
                         class="w-full p-2 text-xs border rounded-lg dark:bg-gray-700 dark:border-gray-600 dark:text-gray-100">
                 </div>
 
@@ -1051,7 +1051,7 @@
             document.getElementById('top_p').value = settings.top_p || 0.95;
             document.getElementById('top_p-value').textContent = settings.top_p || 0.95;
             document.getElementById('max_tokens').value = settings.max_tokens || 4096;
-            document.getElementById('host').value = settings.host || 'http://localhost:8000';
+            document.getElementById('host').value = settings.host || 'http://localhost:8000/v1';
             document.getElementById('model_name').value = settings.model_name || 'meta-llama/Llama-3.2-1B-Instruct';
             document.getElementById('api_key').value = settings.api_key || '';
         }
@@ -1135,7 +1135,7 @@
                     temperature: 1.0,
                     top_p: 0.95,
                     max_tokens: 4096,
-                    host: 'http://localhost:8000',
+                    host: 'http://localhost:8000/v1',
                     model_name: 'meta-llama/Llama-3.2-1B-Instruct',
                     api_key: ''
                 };

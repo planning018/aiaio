@@ -17,7 +17,7 @@ pip:
 	rm -rf dist/
 	make style && make quality
 	python -m build
-	twine upload dist/* --verbose
+	twine upload dist/* --verbose --repository aiaio
 
 docker-build:
 	docker build -t aiaio .

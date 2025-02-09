@@ -1,15 +1,18 @@
 import asyncio
+import base64
 import os
+import re
 import tempfile
+import time
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Dict, List, Optional
 
 from fastapi import FastAPI, File, Form, HTTPException, Request, UploadFile
 from fastapi.responses import HTMLResponse, JSONResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from openai import OpenAI
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 
 from aiaio import __version__, logger
 from aiaio.db import ChatDatabase
@@ -60,41 +63,12 @@ class SettingsInput(BaseModel):
     temperature: Optional[float] = 1.0
     max_tokens: Optional[int] = 4096
     top_p: Optional[float] = 0.95
-    host: Optional[str] = "http://localhost:8000"
+    host: Optional[str] = "http://localhost:8000/v1"
     model_name: Optional[str] = "meta-llama/Llama-3.2-1B-Instruct"
     api_key: Optional[str] = ""
 
 
 async def text_streamer(messages: List[Dict[str, str]]):
-    """
-    Generate text stream from LLM
-    example messages:
-    [{'message_id': 'c4d7ffae-9b08-4428-a8c7-7e58db061d54', 'conversation_id': 'ded63e06-b42b-47ca-9627-59df796fdd06', 'role': 'system', 'content_type': 'text', 'content': 'pikachoo', 'created_at': 1739082937.895621, 'attachments': '{"attachment_id":null,"file_name":null,"file_path":null}'}, {'message_id': '5387ceaa-4c0a-493e-ae69-0728c1a1e35b', 'conversation_id': 'ded63e06-b42b-47ca-9627-59df796fdd06', 'role': 'user', 'content_type': 'text', 'content': 'test1', 'created_at': 1739082937.902698, 'attachments': '{"attachment_id":null,"file_name":null,"file_path":null}'}, {'message_id': '218e6a7c-03d2-41ef-89d2-b09af5c694ba', 'conversation_id': 'ded63e06-b42b-47ca-9627-59df796fdd06', 'role': 'assistant', 'content_type': 'text', 'content': 'Hello 0\nHello 1\nHello 2\nHello 3\nHello 4\n', 'created_at': 1739082942.910374, 'attachments': '{"attachment_id":null,"file_name":null,"file_path":null}'}, {'message_id': 'e3c2026a-9b6c-458d-bfb1-78a3df1e4526', 'conversation_id': 'ded63e06-b42b-47ca-9627-59df796fdd06', 'role': 'user', 'content_type': 'text', 'content': 'test2', 'created_at': 1739082956.3585727, 'attachments': '{"attachment_id":null,"file_name":null,"file_path":null}'}, {'message_id': '464a67fb-e2f6-4a9d-892b-6945b479d158', 'conversation_id': 'ded63e06-b42b-47ca-9627-59df796fdd06', 'role': 'assistant', 'content_type': 'text', 'content': 'Hello 0\nHello 1\nHello 2\nHello 3\nHello 4\n', 'created_at': 1739082961.3697152, 'attachments': '{"attachment_id":null,"file_name":null,"file_path":null}'}, {'message_id': 'f33902d1-33c4-4b07-9225-1e379121326f', 'conversation_id': 'ded63e06-b42b-47ca-9627-59df796fdd06', 'role': 'system', 'content_type': 'text', 'content': 'pikachoo again', 'created_at': 1739082982.2270617, 'attachments': '{"attachment_id":null,"file_name":null,"file_path":null}'}, {'message_id': 'c87af900-aef9-4112-ac93-f20ed4483e47', 'conversation_id': 'ded63e06-b42b-47ca-9627-59df796fdd06', 'role': 'user', 'content_type': 'text', 'content': 'test3', 'created_at': 1739082982.2354774, 'attachments': '{"attachment_id":null,"file_name":null,"file_path":null}'}]
-
-    messages should be formatted to something like:
-    [ { "content": "Please summarize the goals for scientists in this text:\n\nWithin three days, the intertwined cup nest of grasses was complete, featuring a canopy of overhanging grasses to conceal it. And decades later, it served as Rinkert’s portal to the past inside the California Academy of Sciences. Information gleaned from such nests, woven long ago from species in plant communities called transitional habitat, could help restore the shoreline in the future. Transitional habitat has nearly disappeared from the San Francisco Bay, and scientists need a clearer picture of its original species composition—which was never properly documented. With that insight, conservation research groups like the San Francisco Bay Bird Observatory can help guide best practices when restoring the native habitat that has long served as critical refuge for imperiled birds and animals as adjacent marshes flood more with rising sea levels. “We can’t ask restoration ecologists to plant nonnative species or to just take their best guess and throw things out there,” says Rinkert.", "role": "user" }, { "content": "Scientists are studying nests hoping to learn about transitional habitats that could help restore the shoreline of San Francisco Bay.", "role": "assistant" } ]
-    if there is no attachment.
-
-    if there are attachments, attachments need to be read and converted to base64 and added to the message content.
-    in case of attachments, the user messages should be formatted to something like:
-    messages=[{
-            "role":
-            "user",
-            "content": [
-                {
-                    "type": "text",
-                    "text": "What's in this image?"
-                },
-                {
-                    "type": "image_url",
-                    "image_url": {
-                        "url": f"data:image/jpeg;base64,{image_base64}"
-                    },
-                },
-            ],
-        }],
-
-    """
     formatted_messages = []
 
     for msg in messages:
@@ -110,8 +84,6 @@ async def text_streamer(messages: List[Dict[str, str]]):
             for att in attachments:
                 file_type = att.get("file_type", "").split("/")[0]
                 with open(att["file_path"], "rb") as f:
-                    import base64
-
                     file_data = base64.b64encode(f.read()).decode()
 
                 content_type_map = {"image": "image_url", "video": "video_url", "audio": "input_audio"}
@@ -126,10 +98,7 @@ async def text_streamer(messages: List[Dict[str, str]]):
 
         formatted_messages.append(formatted_msg)
 
-    logger.info(f"Formatted messages: {formatted_messages}")
-
     db_settings = db.get_settings()
-    logger.info(f"DB settings: {db_settings}")
     client = OpenAI(
         api_key=db_settings["api_key"] if db_settings["api_key"] != "" else "empty",
         base_url=db_settings["host"],
@@ -232,7 +201,7 @@ async def get_settings():
                 "temperature": 1.0,
                 "max_tokens": 4096,
                 "top_p": 0.95,
-                "host": "http://localhost:8000",
+                "host": "http://localhost:8000/v1",
                 "model_name": "meta-llama/Llama-3.2-1B-Instruct",
                 "api_key": "",
             }
@@ -247,14 +216,10 @@ async def get_default_settings():
         "temperature": 1.0,
         "max_tokens": 4096,
         "top_p": 0.95,
-        "host": "http://localhost:8000",
+        "host": "http://localhost:8000/v1",
         "model_name": "meta-llama/Llama-3.2-1B-Instruct",
         "api_key": "",
     }
-
-
-import re
-import time
 
 
 def generate_safe_filename(original_filename: str) -> str:
@@ -304,7 +269,6 @@ async def chat(
 
         # Verify conversation exists
         history = db.get_conversation_history(conversation_id)
-        logger.info(history)
         if history:
             system_role_messages = [m for m in history if m["role"] == "system"]
             last_system_message = system_role_messages[-1]["content"] if system_role_messages else ""
@@ -354,7 +318,6 @@ async def chat(
 
         # get updated conversation history
         history = db.get_conversation_history(conversation_id)
-        logger.info(f"Conversation history: {history}")
 
         async def process_and_stream():
             full_response = ""
