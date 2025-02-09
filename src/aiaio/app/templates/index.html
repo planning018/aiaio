@@ -88,18 +88,14 @@
             color: #e2e8f0;
         }
         .assistant-message pre {
-            background: rgba(0,0,0,0.1);
-            padding: 12px;
-            border-radius: 8px;
-            overflow-x: auto;
             margin: 1em 0;
             padding: 1em;
             border-radius: 6px;
             background: #f6f8fa;
+            overflow-x: auto;
             border: 1px solid #e5e7eb;
         }
         .dark .assistant-message pre {
-            background: rgba(0,0,0,0.3);
             background: #1a1f2e;
             border-color: #374151;
             color: #e5e7eb;
@@ -367,6 +363,13 @@
         
         .dark .hljs-title {
             color: #e5c07b;  /* Yellow */
+        }
+
+        /* Override highlight.js default borders */
+        .hljs {
+            background: transparent !important;
+            border: none !important;
+            padding: 0 !important;
         }
     </style>
 </head>
