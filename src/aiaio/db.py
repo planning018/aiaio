@@ -33,6 +33,26 @@ CREATE TABLE attachments (
     created_at REAL DEFAULT (strftime('%s.%f', 'now')),
     FOREIGN KEY (message_id) REFERENCES messages(message_id)
 );
+
+CREATE TABLE settings (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    temperature REAL DEFAULT 1.0,
+    max_tokens INTEGER DEFAULT 4096,
+    top_p REAL DEFAULT 0.95,
+    host TEXT DEFAULT 'http://localhost:8000',
+    model_name TEXT DEFAULT 'meta-llama/Llama-3.2-1B-Instruct',
+    api_key TEXT DEFAULT '',
+    updated_at REAL DEFAULT (strftime('%s.%f', 'now'))
+);
+
+-- Insert default settings
+INSERT INTO settings (temperature, max_tokens, top_p, host, model_name, api_key)
+VALUES (1.0, 4096, 0.95, 'http://localhost:8000', 'meta-llama/Llama-3.2-1B-Instruct', 'YOUR_API_KEY');
+"""
+
+
+_SYSTEM_PROMPT = """
+You are an AI assistant. You answer the user's questions and provide helpful information.
 """
 
 
@@ -52,9 +72,9 @@ class ChatDatabase:
                 tables = conn.execute(
                     """SELECT name FROM sqlite_master 
                        WHERE type='table' AND 
-                       name IN ('conversations', 'messages', 'attachments')"""
+                       name IN ('conversations', 'messages', 'attachments', 'settings')"""
                 ).fetchall()
-                if len(tables) < 3:
+                if len(tables) < 4:
                     conn.executescript(_DB)
 
     def create_conversation(self) -> str:
@@ -112,20 +132,37 @@ class ChatDatabase:
         with sqlite3.connect(self.db_path) as conn:
             conn.row_factory = sqlite3.Row
             messages = conn.execute(
-                """SELECT m.*, GROUP_CONCAT(json_object(
-                       'attachment_id', a.attachment_id,
-                       'file_name', a.file_name,
-                       'file_path', a.file_path
-                    )) as attachments
+                """SELECT m.*, a.attachment_id, a.file_name, a.file_path, a.file_type, a.file_size
                    FROM messages m
                    LEFT JOIN attachments a ON m.message_id = a.message_id
                    WHERE m.conversation_id = ?
-                   GROUP BY m.message_id
                    ORDER BY m.created_at ASC""",
                 (conversation_id,),
             ).fetchall()
 
-        return [dict(msg) for msg in messages]
+        # Group attachments by message_id
+        message_dict = {}
+        for row in messages:
+            message_id = row["message_id"]
+            if message_id not in message_dict:
+                message_dict[message_id] = {
+                    key: row[key]
+                    for key in ["message_id", "conversation_id", "role", "content_type", "content", "created_at"]
+                }
+                message_dict[message_id]["attachments"] = []
+
+            if row["attachment_id"]:
+                message_dict[message_id]["attachments"].append(
+                    {
+                        "attachment_id": row["attachment_id"],
+                        "file_name": row["file_name"],
+                        "file_path": row["file_path"],
+                        "file_type": row["file_type"],
+                        "file_size": row["file_size"],
+                    }
+                )
+
+        return list(message_dict.values())
 
     def delete_conversation(self, conversation_id: str):
         with sqlite3.connect(self.db_path) as conn:
@@ -153,6 +190,39 @@ class ChatDatabase:
             ).fetchall()
 
         return [dict(conv) for conv in conversations]
+
+    def save_settings(self, settings: Dict) -> bool:
+        with sqlite3.connect(self.db_path) as conn:
+            current_time = time.time()
+            conn.execute(
+                """
+                UPDATE settings 
+                SET temperature = ?,
+                    max_tokens = ?,
+                    top_p = ?,
+                    host = ?,
+                    model_name = ?,
+                    api_key = ?,
+                    updated_at = ?
+                WHERE id = 1
+            """,
+                (
+                    settings.get("temperature", 1.0),
+                    settings.get("max_tokens", 4096),
+                    settings.get("top_p", 0.95),
+                    settings.get("host", "http://localhost:8000"),
+                    settings.get("model_name", "meta-llama/Llama-3.2-1B-Instruct"),
+                    settings.get("api_key", ""),
+                    current_time,
+                ),
+            )
+        return True
+
+    def get_settings(self) -> Dict:
+        with sqlite3.connect(self.db_path) as conn:
+            conn.row_factory = sqlite3.Row
+            settings = conn.execute("SELECT * FROM settings WHERE id = 1").fetchone()
+            return dict(settings) if settings else {}
 
 
 if __name__ == "__main__":
