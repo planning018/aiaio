@@ -16,7 +16,7 @@ from pydantic import BaseModel
 
 from aiaio import __version__, logger
 from aiaio.db import ChatDatabase
-
+from aiaio.prompts import SUMMARY_PROMPT
 
 logger.info("aiaio...")
 
@@ -540,11 +540,13 @@ async def chat(
 
             # Generate and store summary after assistant's response
             try:
+                all_user_messages = [m["content"] for m in history if m["role"] == "user"]
                 summary_messages = [
-                    {"role": "system", "content": "summarize in less than 50 characters"},
-                    {"role": "user", "content": str([history[-1], {"role": "assistant", "content": full_response}])},
+                    {"role": "system", "content": SUMMARY_PROMPT},
+                    {"role": "user", "content": str(all_user_messages)},
                 ]
                 summary = ""
+                logger.info(summary_messages)
                 async for chunk in text_streamer(summary_messages):
                     summary += chunk
                 db.update_conversation_summary(conversation_id, summary.strip())
