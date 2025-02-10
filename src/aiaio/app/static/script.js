@@ -1,4 +1,3 @@
-
 function formatTimestamp(timestamp) {
     const date = new Date(timestamp * 1000);
     return date.toLocaleString();
@@ -180,7 +179,11 @@ function createAssistantMessage() {
     const messageDiv = document.createElement('div');
     messageDiv.className = 'message-bubble assistant-message';
     chatMessages.appendChild(messageDiv);
-    chatMessages.scrollTop = chatMessages.scrollHeight;
+    
+    // Only scroll to bottom if we haven't manually scrolled up
+    if (!isScrolledManually) {
+        scrollToBottom();
+    }
     return messageDiv;
 }
 
@@ -201,6 +204,11 @@ function updateAssistantMessage(content) {
     if (!currentAssistantMessage) {
         currentAssistantMessage = createAssistantMessage();
     }
+
+    // Store scroll position before updating content
+    const wasAtBottom = Math.abs(
+        (chatMessages.scrollHeight - chatMessages.clientHeight) - chatMessages.scrollTop
+    ) < 10;
 
     // Configure marked options
     marked.setOptions({
@@ -240,8 +248,13 @@ function updateAssistantMessage(content) {
         pre.appendChild(copyButton);
     });
 
-    // Scroll to bottom
-    chatMessages.scrollTop = chatMessages.scrollHeight;
+    // Only scroll to bottom if we were at bottom before and haven't manually scrolled
+    if (wasAtBottom && !isScrolledManually) {
+        scrollToBottom();
+    } else if (!wasAtBottom) {
+        // Show jump-to-bottom button if we're not at bottom
+        jumpToBottomButton.classList.add('visible');
+    }
 }
 
 // Add this new event listener for Enter key
@@ -262,7 +275,7 @@ chatForm.addEventListener('submit', async (e) => {
     if (!message && !files.length) return;
 
     messageInput.value = '';
-    sendButton.disabled = true; // Disable button
+    sendButton.disabled = true;
     
     try {
         if (!currentConversationId) {
@@ -306,14 +319,30 @@ chatForm.addEventListener('submit', async (e) => {
         const reader = response.body.getReader();
         const decoder = new TextDecoder();
 
+        let isFirstChunk = true;
         while (true) {
             const {value, done} = await reader.read();
             if (done) break;
             
             const chunk = decoder.decode(value);
             responseText += chunk;
+
+            // Only scroll to bottom on first chunk if we're already at bottom
+            if (isFirstChunk) {
+                const isAtBottom = Math.abs(
+                    (chatMessages.scrollHeight - chatMessages.clientHeight) - chatMessages.scrollTop
+                ) < 10;
+                isScrolledManually = !isAtBottom;
+                isFirstChunk = false;
+            }
+            
             // Update the message with the accumulated text
             updateAssistantMessage(responseText);
+            
+            // Only auto-scroll if user hasn't scrolled up
+            if (!isScrolledManually) {
+                scrollToBottom();
+            }
         }
 
     } catch (error) {
@@ -321,7 +350,15 @@ chatForm.addEventListener('submit', async (e) => {
         currentAssistantMessage = null;
         appendMessage('Sorry, something went wrong. ' + error.message, 'assistant');
     } finally {
-        sendButton.disabled = false; // Re-enable button
+        sendButton.disabled = false;
+        
+        // After streaming is complete, check if we should show jump-to-bottom button
+        const isAtBottom = Math.abs(
+            (chatMessages.scrollHeight - chatMessages.clientHeight) - chatMessages.scrollTop
+        ) < 10;
+        if (!isAtBottom) {
+            jumpToBottomButton.classList.add('visible');
+        }
     }
 });
 
@@ -541,3 +578,83 @@ async function loadVersion() {
         document.getElementById('version-display').textContent = 'version: unknown';
     }
 }
+
+// Add these variables at the top of your script
+let isScrolledManually = false;
+let lastScrollTop = 0;
+const jumpToBottomButton = document.getElementById('jump-to-bottom');
+
+// Add this function to handle scrolling
+function handleScroll() {
+    const currentScrollTop = chatMessages.scrollTop;
+    const maxScroll = chatMessages.scrollHeight - chatMessages.clientHeight;
+    const isAtBottom = Math.abs(maxScroll - currentScrollTop) < 10;
+    
+    // Only set isScrolledManually if user is scrolling up
+    if (currentScrollTop < lastScrollTop && !isAtBottom) {
+        isScrolledManually = true;
+    }
+    
+    // Show/hide jump to bottom button
+    if (!isAtBottom) {
+        jumpToBottomButton.classList.add('visible');
+    } else {
+        jumpToBottomButton.classList.remove('visible');
+        isScrolledManually = false;
+    }
+    
+    lastScrollTop = currentScrollTop;
+}
+
+// Add scroll event listener
+chatMessages.addEventListener('scroll', handleScroll);
+
+// Update scrollToBottom function
+function scrollToBottom() {
+    chatMessages.scrollTop = chatMessages.scrollHeight;
+    isScrolledManually = false;
+    jumpToBottomButton.classList.remove('visible');
+}
+
+// Update your message handling functions to respect manual scrolling
+function appendMessage(role, content) {
+    // ...existing message appending code...
+    
+    // Only auto-scroll if user hasn't scrolled manually
+    if (!isScrolledManually) {
+        scrollToBottom();
+    }
+}
+
+// Update your streaming response handler
+async function handleStream(response) {
+    // ...existing code...
+    
+    try {
+        const reader = response.body.getReader();
+        let partialMessage = '';
+        
+        while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+            
+            // ...existing streaming code...
+            
+            // Only auto-scroll if user hasn't scrolled manually
+            if (!isScrolledManually) {
+                scrollToBottom();
+            }
+        }
+    } catch (error) {
+        console.error('Error reading stream:', error);
+    }
+}
+
+// Add this initialization when the page loads
+document.addEventListener('DOMContentLoaded', () => {
+    // ...existing initialization code...
+    
+    // Initialize scroll handling
+    chatMessages.addEventListener('scroll', handleScroll);
+    handleScroll(); // Check initial scroll position
+});

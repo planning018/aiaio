@@ -472,6 +472,53 @@
         .chat-area.sidebar-collapsed {
             margin-right: 24px !important;
         }
+
+        /* Add these new styles for scroll behavior */
+        #chat-messages {
+            scroll-behavior: smooth;
+        }
+
+        /* Jump to bottom button */
+        .jump-to-bottom {
+            position: fixed;
+            bottom: 140px; /* Position above the chat input */
+            right: 280px; /* Position considering the right sidebar */
+            background: rgba(59, 130, 246, 0.9);
+            color: white;
+            padding: 8px 12px;
+            border-radius: 20px;
+            cursor: pointer;
+            opacity: 0;
+            transform: translateY(20px);
+            transition: opacity 0.2s, transform 0.2s;
+            z-index: 50;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            font-size: 0.875rem;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        .jump-to-bottom.visible {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        .dark .jump-to-bottom {
+            background: rgba(59, 130, 246, 0.8);
+        }
+
+        @media (max-width: 640px) {
+            .jump-to-bottom {
+                right: 20px;
+                bottom: 160px;
+            }
+        }
+
+        /* When settings sidebar is collapsed */
+        .chat-area.sidebar-collapsed .jump-to-bottom {
+            right: 40px;
+        }
     </style>
 </head>
 
@@ -568,8 +615,14 @@
                 <div id="chat-messages" class="flex-grow overflow-y-auto p-2 sm:p-4">
                     <!-- Chat messages will be inserted here -->
                 </div>
+                <!-- Add jump-to-bottom button here, after chat-messages -->
+                <button id="jump-to-bottom" class="jump-to-bottom" onclick="scrollToBottom()">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 14l-7 7m0 0l-7-7m7 7V3"></path>
+                    </svg>
+                    <span>Jump to bottom</span>
+                </button>
             </div>
-
             <!-- Chat Input Area - Fixed on mobile -->
             <div class="flex-none bg-white dark:bg-gray-800 rounded-lg p-2 sm:p-4 mt-2 sm:mt-4 fixed sm:relative bottom-0 left-0 right-0 sm:left-auto sm:right-auto mx-2 sm:mx-0">
                 <form id="chat-form" class="space-y-2">
