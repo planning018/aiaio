@@ -485,18 +485,19 @@
             right: 280px; /* Position considering the right sidebar */
             background: rgba(59, 130, 246, 0.9);
             color: white;
-            padding: 8px 12px;
-            border-radius: 20px;
+            padding: 0.5rem;
+            border-radius: 9999px;
             cursor: pointer;
             opacity: 0;
             transform: translateY(20px);
             transition: opacity 0.2s, transform 0.2s;
             z-index: 50;
+            width: 32px;
+            height: 32px;
             display: flex;
             align-items: center;
-            gap: 4px;
-            font-size: 0.875rem;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            justify-content: center;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
         }
 
         .jump-to-bottom.visible {
@@ -620,7 +621,6 @@
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 14l-7 7m0 0l-7-7m7 7V3"></path>
                     </svg>
-                    <span>Jump to bottom</span>
                 </button>
             </div>
             <!-- Chat Input Area - Fixed on mobile -->
