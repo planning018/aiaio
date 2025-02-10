@@ -18,6 +18,7 @@ from aiaio import __version__, logger
 from aiaio.db import ChatDatabase
 from aiaio.prompts import SUMMARY_PROMPT
 
+
 logger.info("aiaio...")
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -33,6 +34,29 @@ TEMP_DIR.mkdir(exist_ok=True)
 
 # Initialize database
 db = ChatDatabase()
+
+
+class ConnectionManager:
+    def __init__(self):
+        self.active_connections: List[WebSocket] = []
+
+    async def connect(self, websocket: WebSocket):
+        await websocket.accept()
+        self.active_connections.append(websocket)
+
+    def disconnect(self, websocket: WebSocket):
+        self.active_connections.remove(websocket)
+
+    async def broadcast(self, message: dict):
+        for connection in self.active_connections:
+            try:
+                await connection.send_json(message)
+            except Exception:
+                # If sending fails, we'll handle it in the main websocket route
+                pass
+
+
+manager = ConnectionManager()
 
 
 class FileAttachment(BaseModel):
@@ -261,10 +285,7 @@ async def create_conversation():
     try:
         conversation_id = db.create_conversation()
         # Broadcast update to all connected clients
-        await manager.broadcast({
-            "type": "conversation_created",
-            "conversation_id": conversation_id
-        })
+        await manager.broadcast({"type": "conversation_created", "conversation_id": conversation_id})
         return {"conversation_id": conversation_id}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -314,10 +335,7 @@ async def delete_conversation(conversation_id: str):
     """
     try:
         db.delete_conversation(conversation_id)
-        await manager.broadcast({
-            "type": "conversation_deleted",
-            "conversation_id": conversation_id
-        })
+        await manager.broadcast({"type": "conversation_deleted", "conversation_id": conversation_id})
         return {"status": "success"}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -548,10 +566,12 @@ async def chat(
             db.add_message(conversation_id=conversation_id, role="assistant", content=full_response)
 
             # Broadcast update after storing the response
-            await manager.broadcast({
-                "type": "message_added",
-                "conversation_id": conversation_id,
-            })
+            await manager.broadcast(
+                {
+                    "type": "message_added",
+                    "conversation_id": conversation_id,
+                }
+            )
 
             # Generate and store summary after assistant's response
             try:
@@ -567,11 +587,9 @@ async def chat(
                 db.update_conversation_summary(conversation_id, summary.strip())
 
                 # After summary update
-                await manager.broadcast({
-                    "type": "summary_updated",
-                    "conversation_id": conversation_id,
-                    "summary": summary.strip()
-                })
+                await manager.broadcast(
+                    {"type": "summary_updated", "conversation_id": conversation_id, "summary": summary.strip()}
+                )
             except Exception as e:
                 logger.error(f"Failed to generate summary: {e}")
 
@@ -611,27 +629,6 @@ async def update_conversation_summary(conversation_id: str, summary: str = Form(
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-
-class ConnectionManager:
-    def __init__(self):
-        self.active_connections: List[WebSocket] = []
-
-    async def connect(self, websocket: WebSocket):
-        await websocket.accept()
-        self.active_connections.append(websocket)
-
-    def disconnect(self, websocket: WebSocket):
-        self.active_connections.remove(websocket)
-
-    async def broadcast(self, message: dict):
-        for connection in self.active_connections:
-            try:
-                await connection.send_json(message)
-            except:
-                # If sending fails, we'll handle it in the main websocket route
-                pass
-
-manager = ConnectionManager()
 
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
