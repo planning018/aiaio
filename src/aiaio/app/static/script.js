@@ -205,39 +205,56 @@ function updateAssistantMessage(content) {
         currentAssistantMessage = createAssistantMessage();
     }
 
-    // Store scroll position before updating content
     const wasAtBottom = Math.abs(
         (chatMessages.scrollHeight - chatMessages.clientHeight) - chatMessages.scrollTop
     ) < 10;
 
     // Configure marked options
     marked.setOptions({
-        gfm: true, // GitHub Flavored Markdown
-        breaks: true, // Add <br> on single line breaks
-        headerIds: false, // Disable header IDs to prevent conflicts
-        mangle: false, // Disable mangling to prevent conflicts
+        gfm: true,
+        breaks: true,
+        headerIds: false,
+        mangle: false,
         highlight: function(code, language) {
             if (language && hljs.getLanguage(language)) {
                 try {
                     return hljs.highlight(code, { language }).value;
-                } catch (err) {
-                    console.error('Highlight.js error:', err);
-                }
+                } catch (err) {}
             }
-            return code; // Fallback to raw code if language not supported
+            return code;
         }
     });
 
-    // Update the content
-    currentAssistantMessage.innerHTML = marked.parse(content);
+    // Clean up any existing highlights before updating
+    const existingHighlights = currentAssistantMessage.querySelectorAll('pre code');
+    existingHighlights.forEach(block => {
+        block.parentElement.removeChild(block);
+    });
 
-    // Add copy button to code blocks
+    // Parse and update content
+    let parsedContent = marked.parse(content);
+    
+    // Ensure code blocks are properly wrapped
+    parsedContent = parsedContent.replace(
+        /<pre><code class="(.*?)">/g, 
+        '<pre><code class="hljs $1">'
+    );
+
+    currentAssistantMessage.innerHTML = parsedContent;
+
+    // Re-apply syntax highlighting to all code blocks
     currentAssistantMessage.querySelectorAll('pre code').forEach(block => {
-        // Apply syntax highlighting
+        // Remove any previous copy buttons
+        const pre = block.parentNode;
+        const oldButton = pre.querySelector('.copy-button');
+        if (oldButton) {
+            pre.removeChild(oldButton);
+        }
+
+        // Apply fresh syntax highlighting
         hljs.highlightElement(block);
         
-        // Create and add copy button
-        const pre = block.parentNode;
+        // Add new copy button
         const copyButton = document.createElement('button');
         copyButton.className = 'copy-button';
         copyButton.textContent = 'Copy';
@@ -248,11 +265,9 @@ function updateAssistantMessage(content) {
         pre.appendChild(copyButton);
     });
 
-    // Only scroll to bottom if we were at bottom before and haven't manually scrolled
     if (wasAtBottom && !isScrolledManually) {
         scrollToBottom();
     } else if (!wasAtBottom) {
-        // Show jump-to-bottom button if we're not at bottom
         jumpToBottomButton.classList.add('visible');
     }
 }
