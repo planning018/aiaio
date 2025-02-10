@@ -7,7 +7,7 @@ import time
 from pathlib import Path
 from typing import Dict, List, Optional
 
-from fastapi import FastAPI, File, Form, HTTPException, Request, UploadFile
+from fastapi import FastAPI, File, Form, HTTPException, Request, UploadFile, WebSocket, WebSocketDisconnect
 from fastapi.responses import HTMLResponse, JSONResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
@@ -260,6 +260,11 @@ async def create_conversation():
     """
     try:
         conversation_id = db.create_conversation()
+        # Broadcast update to all connected clients
+        await manager.broadcast({
+            "type": "conversation_created",
+            "conversation_id": conversation_id
+        })
         return {"conversation_id": conversation_id}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -309,6 +314,10 @@ async def delete_conversation(conversation_id: str):
     """
     try:
         db.delete_conversation(conversation_id)
+        await manager.broadcast({
+            "type": "conversation_deleted",
+            "conversation_id": conversation_id
+        })
         return {"status": "success"}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -538,6 +547,12 @@ async def chat(
             # Store the complete response
             db.add_message(conversation_id=conversation_id, role="assistant", content=full_response)
 
+            # Broadcast update after storing the response
+            await manager.broadcast({
+                "type": "message_added",
+                "conversation_id": conversation_id,
+            })
+
             # Generate and store summary after assistant's response
             try:
                 all_user_messages = [m["content"] for m in history if m["role"] == "user"]
@@ -550,6 +565,13 @@ async def chat(
                 async for chunk in text_streamer(summary_messages):
                     summary += chunk
                 db.update_conversation_summary(conversation_id, summary.strip())
+
+                # After summary update
+                await manager.broadcast({
+                    "type": "summary_updated",
+                    "conversation_id": conversation_id,
+                    "summary": summary.strip()
+                })
             except Exception as e:
                 logger.error(f"Failed to generate summary: {e}")
 
@@ -588,3 +610,35 @@ async def update_conversation_summary(conversation_id: str, summary: str = Form(
         return {"status": "success"}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+
+class ConnectionManager:
+    def __init__(self):
+        self.active_connections: List[WebSocket] = []
+
+    async def connect(self, websocket: WebSocket):
+        await websocket.accept()
+        self.active_connections.append(websocket)
+
+    def disconnect(self, websocket: WebSocket):
+        self.active_connections.remove(websocket)
+
+    async def broadcast(self, message: dict):
+        for connection in self.active_connections:
+            try:
+                await connection.send_json(message)
+            except:
+                # If sending fails, we'll handle it in the main websocket route
+                pass
+
+manager = ConnectionManager()
+
+@app.websocket("/ws")
+async def websocket_endpoint(websocket: WebSocket):
+    await manager.connect(websocket)
+    try:
+        while True:
+            # Wait for any message (keepalive)
+            await websocket.receive_text()
+    except WebSocketDisconnect:
+        manager.disconnect(websocket)

@@ -3,34 +3,84 @@ function formatTimestamp(timestamp) {
     return date.toLocaleString();
 }
 
-let pollInterval = null;
-const POLL_INTERVAL_MS = 3000; // Poll every 3 seconds
+let ws;
 
-function startPolling() {
-    // Clear any existing interval
-    if (pollInterval) {
-        clearInterval(pollInterval);
-    }
+function connectWebSocket() {
+    // Use secure WebSocket if the page is served over HTTPS
+    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const wsUrl = `${protocol}//${window.location.host}/ws`;
     
-    // Set up new polling interval
-    pollInterval = setInterval(loadConversations, POLL_INTERVAL_MS);
+    ws = new WebSocket(wsUrl);
+
+    ws.onmessage = (event) => {
+        const data = JSON.parse(event.data);
+        handleWebSocketMessage(data);
+    };
+
+    ws.onclose = () => {
+        // Reconnect after a delay
+        setTimeout(connectWebSocket, 3000);
+    };
+
+    // Send keepalive message every 30 seconds
+    const keepAliveInterval = setInterval(() => {
+        if (ws.readyState === WebSocket.OPEN) {
+            ws.send('keepalive');
+        }
+    }, 30000);
+
+    ws.onerror = (error) => {
+        console.error('WebSocket error:', error);
+    };
+}
+
+function handleWebSocketMessage(data) {
+    switch (data.type) {
+        case 'conversation_created':
+        case 'conversation_deleted':
+        case 'message_added':
+            // Always update the conversations list to reflect changes
+            loadConversations();
+            
+            // Additional handling for current conversation
+            if (data.type === 'message_added' && currentConversationId === data.conversation_id) {
+                loadConversation(data.conversation_id);
+            } else if (data.type === 'conversation_deleted' && currentConversationId === data.conversation_id) {
+                startNewConversation();
+            }
+            break;
+        
+        case 'summary_updated':
+            // Find and update the specific conversation's summary
+            const conversationElement = document.querySelector(`[data-conversation-id="${data.conversation_id}"]`);
+            if (conversationElement) {
+                const summaryElement = conversationElement.querySelector('.text-[10px].text-gray-600');
+                if (summaryElement) {
+                    summaryElement.textContent = data.summary || 'No summary';
+                }
+            }
+            break;
+    }
 }
 
 document.addEventListener('DOMContentLoaded', () => {
     loadConversations();
     updateSystemPrompt(); // Replace loadSystemPrompt with updateSystemPrompt
     startNewConversation();
-    startPolling(); // Start polling for conversation updates
+    connectWebSocket(); // Replace startPolling() with WebSocket connection
     loadSettings(); // Add this line
     loadVersion(); // Add this line
 });
 
 document.addEventListener('visibilitychange', () => {
     if (document.hidden) {
-        clearInterval(pollInterval);
+        // Optional: You could close the WebSocket here if desired
     } else {
-        loadConversations(); // Immediate refresh when page becomes visible
-        startPolling();
+        // Ensure we have a connection when page becomes visible
+        if (!ws || ws.readyState !== WebSocket.OPEN) {
+            connectWebSocket();
+        }
+        loadConversations(); // One-time refresh when returning to the page
     }
 });
 
@@ -53,7 +103,8 @@ async function loadConversations() {
             const lastUpdated = formatTimestamp(conv.last_updated);
             return `
                 <div class="group w-full px-3 py-2 text-sm rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors duration-200 cursor-pointer mb-2 relative" 
-                        onclick="loadConversation('${conv.conversation_id}')">
+                     onclick="loadConversation('${conv.conversation_id}')"
+                     data-conversation-id="${conv.conversation_id}">
                     <div class="text-xs">${conv.conversation_id}</div>
                     <div class="text-[10px] text-gray-600 dark:text-gray-300 italic mb-1 overflow-hidden text-ellipsis">
                         ${conv.summary || 'No summary'}
