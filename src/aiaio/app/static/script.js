@@ -1,6 +1,11 @@
 function formatTimestamp(timestamp) {
     const date = new Date(timestamp * 1000);
-    return date.toLocaleString();
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const month = months[date.getMonth()];
+    const day = date.getDate();
+    const year = date.getFullYear();
+    const time = date.toLocaleTimeString();
+    return `${month} ${day}, ${year} ${time}`;
 }
 
 let ws;
@@ -105,8 +110,7 @@ async function loadConversations() {
                 <div class="group w-full px-3 py-2 text-sm rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors duration-200 cursor-pointer mb-2 relative" 
                      onclick="loadConversation('${conv.conversation_id}')"
                      data-conversation-id="${conv.conversation_id}">
-                    <div class="text-xs">${conv.conversation_id}</div>
-                    <div class="text-[10px] text-gray-600 dark:text-gray-300 italic mb-1 overflow-hidden text-ellipsis">
+                    <div class="text-xs text-gray-600 dark:text-gray-300 italic overflow-hidden text-ellipsis">
                         ${conv.summary || 'No summary'}
                     </div>
                     <div class="text-[10px] text-gray-500 dark:text-gray-400">
