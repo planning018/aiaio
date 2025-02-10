@@ -21,6 +21,7 @@ A lightweight, privacy-focused web UI for interacting with AI models. Supports b
 
 ## Requirements
 
+
 - Python 3.10+
 - An OpenAI-compatible API endpoint (local or remote)
 
@@ -35,6 +36,14 @@ aiaio works with any OpenAI-compatible API endpoint, including:
 - llama.cpp server
 - LocalAI
 - Custom OpenAI-compatible APIs
+
+For example, you can serve llama 8b using vLLM using:
+
+```bash
+vllm serve Meta-Llama-3.1-8B-Instruct.Q4_K_M.gguf --tokenizer meta-llama/Llama-3.1-8B-Instruct --max_model_len 125000
+```
+
+and once the api is running, you can access it using aiaio ui.
 
 ## Installation
 
