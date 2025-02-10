@@ -7,32 +7,49 @@ A lightweight, privacy-focused web UI for interacting with AI models. Supports b
 ## Features
 
 - 🌓 Dark/Light mode support
-- 💾 Conversation history and management
-- 📁 File upload and processing
-- ⚙️ Configurable model settings
+- 💾 Local SQLite database for conversation storage
+- 📁 File upload and processing (images, documents, etc.)
+- ⚙️ Configurable model parameters through UI
 - 🔒 Privacy-focused (all data stays local)
 - 📱 Responsive design for mobile/desktop
-- 🎨 Syntax highlighting for code
-- 📋 Code block copying
+- 🎨 Syntax highlighting for code blocks
+- 📋 One-click code block copying
+- 🔄 Real-time conversation updates
+- 📝 Automatic conversation summarization
+- 🎯 Customizable system prompts
+- 🌐 WebSocket support for real-time updates
 
 ## Requirements
 
-- Python 3.8+
+- Python 3.10+
 - An OpenAI-compatible API endpoint (local or remote)
 
-## Supported Frameworks
+## Supported API Endpoints
 
+aiaio works with any OpenAI-compatible API endpoint, including:
+
+- OpenAI API
 - vLLM
-- TGI
-- OpenAI
-- Hugging Face 
-- llama.cpp
-- any other custom openai-compatible api
+- Text Generation Inference (TGI)
+- Hugging Face Inference Endpoints
+- llama.cpp server
+- LocalAI
+- Custom OpenAI-compatible APIs
 
-## Installation using pip
+## Installation
+
+### Using pip
 
 ```bash
 pip install aiaio
+```
+
+### From source
+
+```bash
+git clone https://github.com/abhishekkrthakur/aiaio.git
+cd aiaio
+pip install -e .
 ```
 
 ## Quick Start
@@ -44,6 +61,8 @@ aiaio app --host 127.0.0.1 --port 5000
 
 2. Open your browser and navigate to `http://127.0.0.1:5000`
 
+3. Configure your API endpoint and model settings in the UI
+
 ## Docker Usage
 
 1. Build the Docker image:
@@ -53,22 +72,69 @@ docker build -t aiaio .
 
 2. Run the container:
 ```bash
-docker run -p 9000:9000 aiaio
+docker run -p 9000:9000 \
+  -v /path/to/data:/data \
+  aiaio
 ```
 
-3. Access the UI at `http://localhost:9000`
+The `/data` volume mount is optional but recommended for persistent storage of the SQLite database and uploaded files.
 
-## Configuration
+## UI Configuration
 
-Configure these settings through the UI or environment variables:
+All model and API settings can be configured through the UI:
 
-- `MODEL_NAME` - LLM model to use (default: meta-llama/Llama-3.2-1B-Instruct)
-- `API_HOST` - API endpoint URL
-- `API_KEY` - Your API key (if required)
-- `MAX_TOKENS` - Maximum tokens per response (default: 4096)
-- `TEMPERATURE` - Response randomness (0-2, default: 1.0)
-- `TOP_P` - Nucleus sampling parameter (0-1, default: 0.95)
+### Model Parameters
+- **Temperature** (0-2): Controls response randomness. Higher values make output more creative but less focused
+- **Max Tokens** (1-32k): Maximum length of generated responses
+- **Top P** (0-1): Controls diversity via nucleus sampling. Lower values make output more focused
+- **Model Name**: Name/path of the model to use (depends on your API endpoint)
 
+### API Configuration
+- **Host**: URL of your OpenAI-compatible API endpoint
+- **API Key**: Authentication key if required by your endpoint
+
+These settings are stored in the local SQLite database and persist between sessions.
+
+## File Handling
+
+aiaio supports uploading and processing various file types, depending on the model's capabilities:
+
+- Images (PNG, JPG, GIF, etc.)
+- Documents (PDF, DOC, DOCX)
+- Text files (TXT, CSV, JSON)
+- Audio files (depends on model capabilities)
+- Video files (depends on model capabilities)
+
+Uploaded files are stored temporarily and can be referenced in conversations.
+
+## Database Schema
+
+aiaio uses SQLite for storage with the following main tables:
+
+- `conversations`: Stores chat histories and summaries
+- `messages`: Stores individual messages within conversations
+- `attachments`: Stores file attachment metadata
+- `settings`: Stores UI and model configuration
+
+## Advanced Usage
+
+### Custom System Prompts
+
+Each conversation can have its own system prompt that guides the AI's behavior. Click the "System Prompt" section above the chat to customize it.
+
+### Conversation Management
+
+- Create new conversations using the "+ New Chat" button
+- Switch between conversations in the left sidebar
+- Delete conversations using the trash icon
+- View conversation summaries in the sidebar
+
+### Keyboard Shortcuts
+
+- `Ctrl/Cmd + Enter`: Send message
+- `Esc`: Clear input
+- `Ctrl/Cmd + K`: Focus chat input
+- `Ctrl/Cmd + /`: Toggle settings sidebar
 
 ## Development
 
@@ -77,21 +143,34 @@ Configure these settings through the UI or environment variables:
 git clone https://github.com/abhishekkrthakur/aiaio.git
 cd aiaio
 
-# Install in development mode
-pip install -e .
+# Create a virtual environment
+python -m venv venv
+source venv/bin/activate  # or `venv\Scripts\activate` on Windows
+
+# Install development dependencies
+pip install -e ".[dev]"
 
 # Run tests
 pytest
+
+# Run with auto-reload for development
+uvicorn aiaio.app.app:app --reload --port 5000
 ```
 
 ## Contributing
 
-Contributions are welcome! Please feel free to submit a Pull Request.
+Contributions are welcome! Please:
+
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes
+4. Run the tests (`pytest`)
+5. Submit a pull request
 
 ## License
 
-Apache License - see LICENSE file for details
+Apache License 2.0 - see LICENSE file for details
 
 ## Acknowledgements
 
-GitHub CoPilot. Most of the code was written by CoPilot. I just pressed the keys on the keyboard.
+This project was primarily written with GitHub Copilot's assistance. While the human guided the development, Copilot generated much of the actual code.
