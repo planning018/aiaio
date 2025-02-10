@@ -72,7 +72,7 @@ docker build -t aiaio .
 
 2. Run the container:
 ```bash
-docker run -p 9000:9000 \
+docker run --network host \
   -v /path/to/data:/data \
   aiaio
 ```

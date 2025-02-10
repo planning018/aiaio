@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "aiaio"
-version = "0.0.3"
+version = "0.0.4"
 description = "aiaio"
 readme = "README.md"
 authors = [
@@ -19,7 +19,7 @@ classifiers = [
     "Topic :: Scientific/Engineering :: Artificial Intelligence"
 ]
 keywords = ["aiaio"]
-dependencies = ["fastapi", "uvicorn", "loguru", "jinja2", "python-multipart", "openai"]
+dependencies = ["fastapi", "uvicorn", "loguru", "jinja2", "python-multipart", "openai", "websockets"]
 
 [project.scripts]
 aiaio = "aiaio.cli.aiaio:main"
