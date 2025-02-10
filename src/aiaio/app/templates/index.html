@@ -414,6 +414,64 @@
         .assistant-message pre {
             position: relative;
         }
+
+        /* Add these new styles for the collapsible sidebar */
+        .settings-sidebar {
+            transition: transform 0.3s ease-in-out;
+        }
+
+        .settings-sidebar.collapsed {
+            transform: translateX(calc(100% - 24px));
+        }
+
+        .settings-toggle {
+            position: absolute;
+            left: -12px;
+            top: auto; /* Remove top positioning */
+            bottom: 72px; /* Position from bottom */
+            width: 40px;
+            height: 40px;
+            background: #f8fafc;
+            border: 0px solid #e2e8f0;
+            border-radius: 10px 0 0 10px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background-color 0.2s;
+        }
+
+        .dark .settings-toggle {
+            background: #1e293b;
+            border-color: #334155;
+        }
+
+        .settings-toggle:hover {
+            background: #f1f5f9;
+        }
+
+        .dark .settings-toggle:hover {
+            background: #2d3748;
+        }
+
+        .settings-toggle svg {
+            width: 3px; /* Make arrow icon smaller */
+            height: 12px; /* Make arrow icon smaller */
+            transition: transform 0.3s;
+        }
+
+        .settings-sidebar.collapsed .settings-toggle svg {
+            transform: rotate(180deg);
+        }
+
+        /* Update main chat area transition */
+        .chat-area {
+            transition: margin-right 0.3s ease-in-out;
+        }
+
+        .chat-area.sidebar-collapsed {
+            margin-right: 24px !important;
+        }
     </style>
 </head>
 
@@ -483,7 +541,7 @@
     </aside>
 
     <!-- Main Chat Area - Update padding and margins for mobile -->
-    <div class="sm:ml-64 sm:mr-64 px-2 sm:px-0">
+    <div class="chat-area sm:ml-64 sm:mr-64 px-2 sm:px-0">
         <div class="h-[calc(100vh-1rem)] sm:h-[calc(100vh-2rem)] my-2 sm:my-4 flex flex-col relative">
             <!-- Combined Container for System Prompt and Chat Messages -->
             <div class="flex-grow bg-white dark:bg-gray-800 rounded-lg overflow-hidden flex flex-col min-h-0 mb-[120px] sm:mb-0">
@@ -549,8 +607,9 @@
     </div>
 
     <!-- Right Sidebar -->
-    <aside class="fixed top-0 right-0 z-40 w-64 hidden sm:block">
-        <div class="h-[calc(100vh-2rem)] my-4 mx-3 px-3 py-4 overflow-y-auto bg-gray-50 dark:bg-gray-800 rounded-lg flex flex-col">
+    <aside class="settings-sidebar fixed top-0 right-0 z-40 w-64 hidden sm:block">
+        <div class="h-[calc(100vh-2rem)] my-4 mx-3 px-3 py-4 overflow-y-auto bg-gray-50 dark:bg-gray-800 rounded-lg flex flex-col relative">
+            
             <!-- Settings header -->
             <div class="flex justify-between items-center mb-4">
                 <h3 class="text-sm font-semibold">Settings</h3>
@@ -638,6 +697,10 @@
                            flex items-center justify-center gap-2 shadow-lg hover:shadow-blue-500/50">
                     Save Settings
                 </button>
+                <!-- Add toggle button after the save button -->
+                <button class="settings-toggle" onclick="toggleSettingsSidebar()" title="Toggle Settings">
+                    <i class="fas fa-chevron-left w-4 h-4 transition-transform duration-300"></i>
+                </button>
             </div>
         </div>
     </aside>
@@ -679,6 +742,34 @@
             textarea.classList.add('hidden');
         } else {
             document.getElementById('system-prompt-chevron').classList.add('rotate-180');
+        }
+    });
+
+    function toggleSettingsSidebar() {
+        const sidebar = document.querySelector('.settings-sidebar');
+        const chatArea = document.querySelector('.chat-area');
+        const chevron = document.querySelector('.settings-toggle i');
+        const isCollapsed = sidebar.classList.toggle('collapsed');
+        chatArea.classList.toggle('sidebar-collapsed');
+        
+        // Rotate the chevron icon
+        chevron.style.transform = isCollapsed ? 'rotate(180deg)' : '';
+        
+        // Save the state to localStorage
+        localStorage.setItem('settingsSidebarCollapsed', isCollapsed);
+    }
+
+    // Restore sidebar state on page load
+    document.addEventListener('DOMContentLoaded', () => {
+        const sidebar = document.querySelector('.settings-sidebar');
+        const chatArea = document.querySelector('.chat-area');
+        const chevron = document.querySelector('.settings-toggle i');
+        const isCollapsed = localStorage.getItem('settingsSidebarCollapsed') === 'true';
+        
+        if (isCollapsed) {
+            sidebar.classList.add('collapsed');
+            chatArea.classList.add('sidebar-collapsed');
+            chevron.style.transform = 'rotate(180deg)';
         }
     });
     </script>
