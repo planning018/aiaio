@@ -296,6 +296,7 @@ chatForm.addEventListener('submit', async (e) => {
         if (!currentConversationId) {
             const createResponse = await fetch('/create_conversation', { method: 'POST' });
             const data = await createResponse.json();
+            
             currentConversationId = data.conversation_id;
             loadConversations();
         }
@@ -535,7 +536,7 @@ async function saveSettings() {
     }
 }
 
-async function resetSettings() {
+async function performSettingsReset() {
     try {
         const response = await fetch('/settings/defaults');
         const defaultSettings = await response.json();
@@ -544,7 +545,6 @@ async function resetSettings() {
         document.getElementById('settings-warning').classList.add('hidden');
     } catch (error) {
         console.error('Error fetching default settings:', error);
-        // Fallback to hardcoded defaults if endpoint fails
         const fallbackDefaults = {
             temperature: 1.0,
             top_p: 0.95,
@@ -557,6 +557,53 @@ async function resetSettings() {
         originalSettings = {...fallbackDefaults};
         document.getElementById('settings-warning').classList.add('hidden');
     }
+}
+
+function injectSettingsModal() {
+    // Create modal if it doesn't exist
+    if (!document.getElementById('settings-modal')) {
+        const modal = document.createElement('div');
+        modal.id = 'settings-modal';
+        modal.className = 'fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center hidden';
+        modal.innerHTML = `
+            <div class="bg-white dark:bg-gray-800 rounded-lg p-6 max-w-sm mx-auto">
+                <h3 class="text-lg font-semibold mb-4">Confirm Reset</h3>
+                <p class="mb-4">Are you sure you want to reset all settings to factory defaults? This cannot be undone.</p>
+                <div class="flex justify-end gap-2">
+                    <button id="cancel-reset" class="px-4 py-2 text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700 rounded">
+                        Cancel
+                    </button>
+                    <button id="confirm-reset" class="px-4 py-2 bg-red-500 text-white hover:bg-red-600 rounded">
+                        Reset Settings
+                    </button>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(modal);
+
+        // Add event listeners
+        document.getElementById('cancel-reset').addEventListener('click', () => {
+            modal.classList.add('hidden');
+        });
+
+        document.getElementById('confirm-reset').addEventListener('click', async () => {
+            modal.classList.add('hidden');
+            await performSettingsReset();
+        });
+
+        // Close modal when clicking outside
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) {
+                modal.classList.add('hidden');
+            }
+        });
+    }
+}
+
+function resetSettings() {
+    injectSettingsModal();
+    const modal = document.getElementById('settings-modal');
+    modal.classList.remove('hidden');
 }
 
 async function deleteConversation(conversationId, event) {
