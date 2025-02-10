@@ -106,7 +106,7 @@ async function loadConversation(conversationId) {
         currentConversationId = conversationId;
         
         // Display messages
-        data.messages.forEach(msg => {
+        for (const msg of data.messages) {
             if (msg.role === 'user') {
                 appendUserMessage(msg.content);
             } else if (msg.role === 'assistant') {
@@ -114,10 +114,18 @@ async function loadConversation(conversationId) {
                 updateAssistantMessage(msg.content);
                 currentAssistantMessage = null;
             }
-        });
+        }
 
         // Fetch and update system prompt for the loaded conversation
         await updateSystemPrompt();
+        
+        // Reset scroll state
+        isScrolledManually = false;
+        
+        // Use setTimeout to ensure all content is rendered before scrolling
+        setTimeout(() => {
+            scrollToBottom();
+        }, 100);
     } catch (error) {
         console.error('Error loading conversation:', error);
     }
