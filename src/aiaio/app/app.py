@@ -4,6 +4,8 @@ import os
 import re
 import tempfile
 import time
+import requests
+import json
 from pathlib import Path
 from typing import Dict, List, Optional
 
@@ -120,6 +122,7 @@ class MessageInput(BaseModel):
 
 
 class SettingsInput(BaseModel):
+
     """
     Pydantic model for AI model settings.
 
@@ -197,6 +200,38 @@ async def text_streamer(messages: List[Dict[str, str]]):
     for message in chat_completion:
         if message.choices[0].delta.content is not None:
             yield message.choices[0].delta.content
+
+    # db_settings['host'] = 'xxx'
+    # db_settings['token'] = 'xxx'
+    # db_settings['model_name'] = 'default'
+    #
+    # url = f"{db_settings['host']}/v1/chat/completions"
+    # headers = {
+    #     "Authorization": db_settings['token'],
+    #     "Content-Type": "application/json",
+    # }
+    # payload = {
+    #     "model": db_settings["model_name"],
+    #     "messages": formatted_messages,
+    #     "max_tokens": db_settings["max_tokens"],
+    #     "temperature": db_settings["temperature"],
+    #     "top_p": db_settings["top_p"],
+    #     "stream": True,
+    # }
+    #
+    # response = requests.post(url, headers=headers, json=payload, stream=True)
+    #
+    # for line in response.iter_lines():
+    #     if line:
+    #         try:
+    #             data = line.decode("utf-8").replace("data: ", "").strip()
+    #             if data and data != "[DONE]":
+    #                 message = json.loads(data)
+    #                 if message["choices"][0]["delta"].get("content"):
+    #                     yield message["choices"][0]["delta"]["content"]
+    #         except Exception as e:
+    #             print(f"Error parsing response: {e}")
+
 
 
 @app.get("/", response_class=HTMLResponse)
